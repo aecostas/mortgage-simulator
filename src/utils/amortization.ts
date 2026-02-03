@@ -5,6 +5,7 @@ export interface InterestPeriod {
 }
 
 export interface MortgageConfig {
+  name?: string; // Nombre de la hipoteca (opcional)
   principal: number; // Cantidad inicial
   months: number; // Duración total en meses
   periods: InterestPeriod[]; // Periodos con diferentes intereses

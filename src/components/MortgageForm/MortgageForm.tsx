@@ -4,9 +4,17 @@ import './MortgageForm.scss';
 
 interface MortgageFormProps {
   onSubmit: (config: MortgageConfig) => void;
+  initialName?: string;
+  onNameChange?: (name: string) => void;
 }
 
-export function MortgageForm({ onSubmit }: MortgageFormProps) {
+export function MortgageForm({ onSubmit, initialName = '', onNameChange }: MortgageFormProps) {
+  const [name, setName] = useState<string>(initialName);
+  
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    onNameChange?.(newName);
+  };
   const [principal, setPrincipal] = useState<number>(100000);
   const [months, setMonths] = useState<number>(360);
   const [periods, setPeriods] = useState<InterestPeriod[]>([
@@ -41,6 +49,7 @@ export function MortgageForm({ onSubmit }: MortgageFormProps) {
     }
     
     onSubmit({
+      name,
       principal,
       months,
       periods: sortedPeriods,
@@ -48,6 +57,7 @@ export function MortgageForm({ onSubmit }: MortgageFormProps) {
   };
 
   const handleReset = () => {
+    setName('');
     setPrincipal(100000);
     setMonths(360);
     setPeriods([{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }]);
@@ -97,7 +107,18 @@ export function MortgageForm({ onSubmit }: MortgageFormProps) {
       <div className="card-body">
         <form onSubmit={handleSubmit}>
           <fieldset className="form-section">
-            <legend>Configuración Global</legend>
+            <div className="form-group">
+              <label htmlFor="name">
+                Nombre de la Hipoteca
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Ej: Hipoteca Principal"
+              />
+            </div>
             
             <div className="form-group">
               <label htmlFor="principal">

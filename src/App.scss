@@ -19,12 +19,20 @@
   font-weight: bold;
 }
 
+.app-page > :last-child {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app-layout {
   display: flex;
   flex: 1;
   gap: 20px;
   overflow: hidden;
   min-height: 0;
+  height: 100%;
+  width: 100%;
 }
 
 .app-form-section {

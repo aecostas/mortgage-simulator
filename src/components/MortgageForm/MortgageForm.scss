@@ -51,7 +51,8 @@
     }
   }
   
-  input[type="number"] {
+  input[type="number"],
+  input[type="text"] {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -63,6 +64,10 @@
       outline: none;
       border-color: #0066cc;
       box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+    }
+    
+    &::placeholder {
+      color: #999;
     }
   }
 }
@@ -117,21 +122,21 @@
 .periods-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .period-card {
   background: #f9f9f9;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
-  padding: 15px;
+  padding: 12px;
   
   .period-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     
     h4 {
       margin: 0;
@@ -156,7 +161,11 @@
   .period-fields {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
+    
+    .form-group {
+      margin-bottom: 10px;
+    }
   }
 }
 
