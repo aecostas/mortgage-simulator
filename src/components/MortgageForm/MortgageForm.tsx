@@ -1,53 +1,52 @@
-import { useState } from 'react';
 import type { MortgageConfig, InterestPeriod } from '../../utils/amortization';
+import { useMortgageStore } from '../../store/mortgageStore';
 import './MortgageForm.scss';
 
 interface MortgageFormProps {
+  mortgageId: string;
   onSubmit: (config: MortgageConfig) => void;
-  initialName?: string;
-  onNameChange?: (name: string) => void;
 }
 
-export function MortgageForm({ onSubmit, initialName = '', onNameChange }: MortgageFormProps) {
-  const [name, setName] = useState<string>(initialName);
-  
-  const handleNameChange = (newName: string) => {
-    setName(newName);
-    onNameChange?.(newName);
+export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
+  const mortgage = useMortgageStore((state) => state.getMortgage(mortgageId));
+  const updateFormState = useMortgageStore((state) => state.updateFormState);
+
+  const formState = mortgage?.formState ?? {
+    name: '',
+    principal: 100000,
+    months: 360,
+    periods: [{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }],
   };
-  const [principal, setPrincipal] = useState<number>(100000);
-  const [months, setMonths] = useState<number>(360);
-  const [periods, setPeriods] = useState<InterestPeriod[]>([
-    { startMonth: 1, endMonth: 360, annualInterestRate: 3.5 },
-  ]);
+
+  const { name, principal, months, periods } = formState;
+
+  const handleNameChange = (newName: string) => {
+    updateFormState(mortgageId, { name: newName });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validar que los periodos cubran toda la duración
+
     const sortedPeriods = [...periods].sort((a, b) => a.startMonth - b.startMonth);
-    
-    // Verificar que empiecen en el mes 1
+
     if (sortedPeriods[0].startMonth !== 1) {
       alert('El primer periodo debe empezar en el mes 1');
       return;
     }
-    
-    // Verificar que no haya huecos
+
     for (let i = 0; i < sortedPeriods.length - 1; i++) {
       if (sortedPeriods[i].endMonth + 1 !== sortedPeriods[i + 1].startMonth) {
         alert('Los periodos deben ser consecutivos sin huecos');
         return;
       }
     }
-    
-    // Verificar que el último periodo cubra hasta el final
+
     const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
     if (lastPeriod.endMonth < months) {
       alert(`El último periodo debe llegar hasta el mes ${months}`);
       return;
     }
-    
+
     onSubmit({
       name,
       principal,
@@ -57,29 +56,29 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
   };
 
   const handleReset = () => {
-    setName('');
-    setPrincipal(100000);
-    setMonths(360);
-    setPeriods([{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }]);
+    updateFormState(mortgageId, {
+      name: mortgage?.name ?? 'Hipoteca 1',
+      principal: 100000,
+      months: 360,
+      periods: [{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }],
+    });
   };
 
   const addPeriod = () => {
     const sortedPeriods = [...periods].sort((a, b) => a.startMonth - b.startMonth);
     const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
-    
+
     if (lastPeriod.endMonth >= months) {
       alert('Ya existe un periodo que cubre hasta el final');
       return;
     }
-    
-    const newStartMonth = lastPeriod.endMonth + 1;
+
     const newPeriod: InterestPeriod = {
-      startMonth: newStartMonth,
+      startMonth: lastPeriod.endMonth + 1,
       endMonth: months,
       annualInterestRate: lastPeriod.annualInterestRate,
     };
-    
-    setPeriods([...periods, newPeriod]);
+    updateFormState(mortgageId, { periods: [...periods, newPeriod] });
   };
 
   const removePeriod = (index: number) => {
@@ -87,15 +86,14 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
       alert('Debe haber al menos un periodo');
       return;
     }
-    
     const newPeriods = periods.filter((_, i) => i !== index);
-    setPeriods(newPeriods);
+    updateFormState(mortgageId, { periods: newPeriods });
   };
 
   const updatePeriod = (index: number, field: keyof InterestPeriod, value: number) => {
     const newPeriods = [...periods];
     newPeriods[index] = { ...newPeriods[index], [field]: value };
-    setPeriods(newPeriods);
+    updateFormState(mortgageId, { periods: newPeriods });
   };
 
   const totalYears = Math.ceil(months / 12);
@@ -108,9 +106,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
         <form onSubmit={handleSubmit}>
           <fieldset className="form-section">
             <div className="form-group">
-              <label htmlFor="name">
-                Nombre de la Hipoteca
-              </label>
+              <label htmlFor="name">Nombre de la Hipoteca</label>
               <input
                 type="text"
                 id="name"
@@ -119,7 +115,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                 placeholder="Ej: Hipoteca Principal"
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="principal">
                 Cantidad inicial (Principal) <span className="required">*</span>
@@ -128,7 +124,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                 <button
                   type="button"
                   className="input-button"
-                  onClick={() => setPrincipal(Math.max(0, principal - 1000))}
+                  onClick={() => updateFormState(mortgageId, { principal: Math.max(0, principal - 1000) })}
                 >
                   −
                 </button>
@@ -138,7 +134,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                   value={principal}
                   onChange={(e) => {
                     const value = parseFloat(e.target.value) || 0;
-                    setPrincipal(Math.max(0, value));
+                    updateFormState(mortgageId, { principal: Math.max(0, value) });
                   }}
                   min={0}
                   step={1000}
@@ -148,7 +144,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                 <button
                   type="button"
                   className="input-button"
-                  onClick={() => setPrincipal(principal + 1000)}
+                  onClick={() => updateFormState(mortgageId, { principal: principal + 1000 })}
                 >
                   +
                 </button>
@@ -163,7 +159,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                 <button
                   type="button"
                   className="input-button"
-                  onClick={() => setMonths(Math.max(1, months - 12))}
+                  onClick={() => updateFormState(mortgageId, { months: Math.max(1, months - 12) })}
                 >
                   −
                 </button>
@@ -173,7 +169,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                   value={months}
                   onChange={(e) => {
                     const value = parseInt(e.target.value) || 1;
-                    setMonths(Math.max(1, value));
+                    updateFormState(mortgageId, { months: Math.max(1, value) });
                   }}
                   min={1}
                   required
@@ -182,7 +178,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                 <button
                   type="button"
                   className="input-button"
-                  onClick={() => setMonths(months + 12)}
+                  onClick={() => updateFormState(mortgageId, { months: months + 12 })}
                 >
                   +
                 </button>
@@ -195,15 +191,18 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
 
           <fieldset className="form-section">
             <legend>Periodos de Interés</legend>
-            
+
             <div className="periods-list">
               {sortedPeriods.map((period, index) => {
                 const originalIndex = periods.findIndex(
                   (p) => p.startMonth === period.startMonth && p.endMonth === period.endMonth
                 );
-                
+
                 return (
-                  <div key={`${period.startMonth}-${period.endMonth}-${index}`} className="period-card">
+                  <div
+                    key={`${period.startMonth}-${period.endMonth}-${index}`}
+                    className="period-card"
+                  >
                     <div className="period-header">
                       <h4>Periodo {index + 1}</h4>
                       {periods.length > 1 && (
@@ -217,7 +216,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                         </button>
                       )}
                     </div>
-                    
+
                     <div className="period-fields">
                       <div className="form-group">
                         <label htmlFor={`start-month-${index}`}>
@@ -236,7 +235,7 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                           required
                         />
                       </div>
-                      
+
                       <div className="form-group">
                         <label htmlFor={`end-month-${index}`}>
                           Mes final <span className="required">*</span>
@@ -247,14 +246,18 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                           value={period.endMonth}
                           onChange={(e) => {
                             const value = parseInt(e.target.value) || 1;
-                            updatePeriod(originalIndex, 'endMonth', Math.max(period.startMonth, Math.min(months, value)));
+                            updatePeriod(
+                              originalIndex,
+                              'endMonth',
+                              Math.max(period.startMonth, Math.min(months, value))
+                            );
                           }}
                           min={period.startMonth}
                           max={months}
                           required
                         />
                       </div>
-                      
+
                       <div className="form-group">
                         <label htmlFor={`interest-${index}`}>
                           Interés anual <span className="required">*</span>
@@ -263,7 +266,13 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                           <button
                             type="button"
                             className="input-button"
-                            onClick={() => updatePeriod(originalIndex, 'annualInterestRate', Math.max(0, period.annualInterestRate - 0.1))}
+                            onClick={() =>
+                              updatePeriod(
+                                originalIndex,
+                                'annualInterestRate',
+                                Math.max(0, period.annualInterestRate - 0.1)
+                              )
+                            }
                           >
                             −
                           </button>
@@ -283,7 +292,13 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                           <button
                             type="button"
                             className="input-button"
-                            onClick={() => updatePeriod(originalIndex, 'annualInterestRate', period.annualInterestRate + 0.1)}
+                            onClick={() =>
+                              updatePeriod(
+                                originalIndex,
+                                'annualInterestRate',
+                                period.annualInterestRate + 0.1
+                              )
+                            }
                           >
                             +
                           </button>
@@ -294,12 +309,8 @@ export function MortgageForm({ onSubmit, initialName = '', onNameChange }: Mortg
                 );
               })}
             </div>
-            
-            <button
-              type="button"
-              className="add-period-button"
-              onClick={addPeriod}
-            >
+
+            <button type="button" className="add-period-button" onClick={addPeriod}>
               ➕ Añadir Periodo
             </button>
           </fieldset>
