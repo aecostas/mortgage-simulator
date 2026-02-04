@@ -1,0 +1,25 @@
+.euribor-chart {
+  padding: 16px 20px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+
+  .euribor-chart-title {
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .euribor-chart-svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .euribor-chart-axis-label,
+  .euribor-chart-tick {
+    font-size: 11px;
+    fill: #666;
+  }
+}

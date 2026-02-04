@@ -1,5 +1,6 @@
-import type { MortgageConfig, InterestPeriod } from '../../utils/amortization';
+import type { MortgageConfig, InterestPeriod, InterestType } from '../../utils/amortization';
 import { useMortgageStore } from '../../store/mortgageStore';
+import type { InsurancePeriod } from '../../store/mortgageStore';
 import './MortgageForm.scss';
 
 interface MortgageFormProps {
@@ -15,10 +16,30 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
     name: '',
     principal: 100000,
     months: 360,
-    periods: [{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }],
+    periods: [
+      {
+        startMonth: 1,
+        endMonth: 360,
+        interestType: 'fixed',
+        annualInterestRate: 3.5,
+      },
+    ],
+    lifeInsuranceAmount: 0,
+    lifeInsurancePeriod: 'annual' as InsurancePeriod,
+    homeInsuranceAmount: 0,
+    homeInsurancePeriod: 'annual' as InsurancePeriod,
   };
 
-  const { name, principal, months, periods } = formState;
+  const {
+    name,
+    principal,
+    months,
+    periods,
+    lifeInsuranceAmount,
+    lifeInsurancePeriod,
+    homeInsuranceAmount,
+    homeInsurancePeriod,
+  } = formState;
 
   const handleNameChange = (newName: string) => {
     updateFormState(mortgageId, { name: newName });
@@ -60,7 +81,18 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
       name: mortgage?.name ?? 'Hipoteca 1',
       principal: 100000,
       months: 360,
-      periods: [{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }],
+      periods: [
+        {
+          startMonth: 1,
+          endMonth: 360,
+          interestType: 'fixed',
+          annualInterestRate: 3.5,
+        },
+      ],
+      lifeInsuranceAmount: 0,
+      lifeInsurancePeriod: 'annual',
+      homeInsuranceAmount: 0,
+      homeInsurancePeriod: 'annual',
     });
   };
 
@@ -74,9 +106,9 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
     }
 
     const newPeriod: InterestPeriod = {
+      ...lastPeriod,
       startMonth: lastPeriod.endMonth + 1,
       endMonth: months,
-      annualInterestRate: lastPeriod.annualInterestRate,
     };
     updateFormState(mortgageId, { periods: [...periods, newPeriod] });
   };
@@ -90,9 +122,20 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
     updateFormState(mortgageId, { periods: newPeriods });
   };
 
-  const updatePeriod = (index: number, field: keyof InterestPeriod, value: number) => {
+  const updatePeriod = (
+    index: number,
+    field: keyof InterestPeriod,
+    value: number | InterestType
+  ) => {
     const newPeriods = [...periods];
-    newPeriods[index] = { ...newPeriods[index], [field]: value };
+    const next = { ...newPeriods[index], [field]: value };
+    if (field === 'interestType' && value === 'variable') {
+      next.euriborDifferential = next.euriborDifferential ?? 0.99;
+      next.euriborMin = next.euriborMin ?? 2;
+      next.euriborMax = next.euriborMax ?? 5;
+      next.euriborVolatility = next.euriborVolatility ?? 2;
+    }
+    newPeriods[index] = next;
     updateFormState(mortgageId, { periods: newPeriods });
   };
 
@@ -259,51 +302,188 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor={`interest-${index}`}>
-                          Interés anual <span className="required">*</span>
-                        </label>
-                        <div className="input-group">
-                          <button
-                            type="button"
-                            className="input-button"
-                            onClick={() =>
-                              updatePeriod(
-                                originalIndex,
-                                'annualInterestRate',
-                                Math.max(0, period.annualInterestRate - 0.1)
-                              )
-                            }
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            id={`interest-${index}`}
-                            value={period.annualInterestRate}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value) || 0;
-                              updatePeriod(originalIndex, 'annualInterestRate', Math.max(0, value));
-                            }}
-                            min={0}
-                            step={0.1}
-                            required
-                          />
-                          <span className="input-unit">%</span>
-                          <button
-                            type="button"
-                            className="input-button"
-                            onClick={() =>
-                              updatePeriod(
-                                originalIndex,
-                                'annualInterestRate',
-                                period.annualInterestRate + 0.1
-                              )
-                            }
-                          >
-                            +
-                          </button>
-                        </div>
+                        <label htmlFor={`interest-type-${index}`}>Tipo de interés</label>
+                        <select
+                          id={`interest-type-${index}`}
+                          value={period.interestType ?? 'fixed'}
+                          onChange={(e) =>
+                            updatePeriod(
+                              originalIndex,
+                              'interestType',
+                              e.target.value as InterestType
+                            )
+                          }
+                        >
+                          <option value="fixed">Fijo</option>
+                          <option value="variable">Variable</option>
+                        </select>
                       </div>
+
+                      {(period.interestType ?? 'fixed') === 'fixed' ? (
+                        <div className="form-group">
+                          <label htmlFor={`interest-${index}`}>
+                            Interés anual <span className="required">*</span>
+                          </label>
+                          <div className="input-group">
+                            <button
+                              type="button"
+                              className="input-button"
+                              onClick={() =>
+                                updatePeriod(
+                                  originalIndex,
+                                  'annualInterestRate',
+                                  Math.max(0, period.annualInterestRate - 0.1)
+                                )
+                              }
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              id={`interest-${index}`}
+                              value={period.annualInterestRate}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                updatePeriod(originalIndex, 'annualInterestRate', Math.max(0, value));
+                              }}
+                              min={0}
+                              step={0.1}
+                              required
+                            />
+                            <span className="input-unit">%</span>
+                            <button
+                              type="button"
+                              className="input-button"
+                              onClick={() =>
+                                updatePeriod(
+                                  originalIndex,
+                                  'annualInterestRate',
+                                  period.annualInterestRate + 0.1
+                                )
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="form-group">
+                            <label htmlFor={`differential-${index}`}>Diferencial (Euribor +)</label>
+                            <div className="input-group">
+                              <input
+                                type="number"
+                                id={`differential-${index}`}
+                                value={period.euriborDifferential ?? 0.99}
+                                onChange={(e) => {
+                                  const value = parseFloat(e.target.value);
+                                  updatePeriod(
+                                    originalIndex,
+                                    'euriborDifferential',
+                                    isNaN(value) ? 0 : value
+                                  );
+                                }}
+                                min={0}
+                                step={0.01}
+                              />
+                              <span className="input-unit">%</span>
+                            </div>
+                          </div>
+                          <div className="form-group period-two-cols">
+                            <div className="form-group">
+                              <label htmlFor={`euribor-min-${index}`}>Euribor mín</label>
+                              <div className="input-group">
+                                <input
+                                  type="number"
+                                  id={`euribor-min-${index}`}
+                                  value={period.euriborMin ?? 2}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value);
+                                    updatePeriod(
+                                      originalIndex,
+                                      'euriborMin',
+                                      isNaN(value) ? 0 : value
+                                    );
+                                  }}
+                                  min={-5}
+                                  step={0.1}
+                                />
+                                <span className="input-unit">%</span>
+                              </div>
+                            </div>
+                            <div className="form-group">
+                              <label htmlFor={`euribor-max-${index}`}>Euribor máx</label>
+                              <div className="input-group">
+                                <input
+                                  type="number"
+                                  id={`euribor-max-${index}`}
+                                  value={period.euriborMax ?? 5}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value);
+                                    updatePeriod(
+                                      originalIndex,
+                                      'euriborMax',
+                                      isNaN(value) ? 0 : value
+                                    );
+                                  }}
+                                  min={-5}
+                                  step={0.1}
+                                />
+                                <span className="input-unit">%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label htmlFor={`volatility-${index}`}>
+                              Volatilidad Euribor (0 estable, 5 muy dinámico)
+                            </label>
+                            <div className="input-group">
+                              <button
+                                type="button"
+                                className="input-button"
+                                onClick={() =>
+                                  updatePeriod(
+                                    originalIndex,
+                                    'euriborVolatility',
+                                    Math.max(0, (period.euriborVolatility ?? 2) - 0.5)
+                                  )
+                                }
+                              >
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                id={`volatility-${index}`}
+                                value={period.euriborVolatility ?? 2}
+                                onChange={(e) => {
+                                  const value = parseFloat(e.target.value);
+                                  updatePeriod(
+                                    originalIndex,
+                                    'euriborVolatility',
+                                    isNaN(value) ? 0 : Math.max(0, Math.min(5, value))
+                                  );
+                                }}
+                                min={0}
+                                max={5}
+                                step={0.5}
+                              />
+                              <button
+                                type="button"
+                                className="input-button"
+                                onClick={() =>
+                                  updatePeriod(
+                                    originalIndex,
+                                    'euriborVolatility',
+                                    Math.min(5, (period.euriborVolatility ?? 2) + 0.5)
+                                  )
+                                }
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -313,6 +493,86 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
             <button type="button" className="add-period-button" onClick={addPeriod}>
               ➕ Añadir Periodo
             </button>
+          </fieldset>
+
+          <hr className="form-divider" />
+
+          <fieldset className="form-section">
+            <legend>Seguros</legend>
+            <div className="insurance-row">
+              <div className="form-group insurance-amount">
+                <label htmlFor="lifeInsurance">Seguro de vida</label>
+                <div className="input-group">
+                  <input
+                    type="number"
+                    id="lifeInsurance"
+                    value={lifeInsuranceAmount || ''}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      updateFormState(mortgageId, {
+                        lifeInsuranceAmount: isNaN(value) ? 0 : Math.max(0, value),
+                      });
+                    }}
+                    min={0}
+                    step={10}
+                    placeholder="0"
+                  />
+                  <span className="input-unit">€</span>
+                </div>
+              </div>
+              <div className="form-group insurance-period">
+                <label htmlFor="lifeInsurancePeriod">Periodo</label>
+                <select
+                  id="lifeInsurancePeriod"
+                  value={lifeInsurancePeriod}
+                  onChange={(e) =>
+                    updateFormState(mortgageId, {
+                      lifeInsurancePeriod: e.target.value as InsurancePeriod,
+                    })
+                  }
+                >
+                  <option value="annual">Anual</option>
+                  <option value="monthly">Mensual</option>
+                </select>
+              </div>
+            </div>
+            <div className="insurance-row">
+              <div className="form-group insurance-amount">
+                <label htmlFor="homeInsurance">Seguro de hogar</label>
+                <div className="input-group">
+                  <input
+                    type="number"
+                    id="homeInsurance"
+                    value={homeInsuranceAmount || ''}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      updateFormState(mortgageId, {
+                        homeInsuranceAmount: isNaN(value) ? 0 : Math.max(0, value),
+                      });
+                    }}
+                    min={0}
+                    step={10}
+                    placeholder="0"
+                  />
+                  <span className="input-unit">€</span>
+                </div>
+              </div>
+              <div className="form-group insurance-period">
+                <label htmlFor="homeInsurancePeriod">Periodo</label>
+                <select
+                  id="homeInsurancePeriod"
+                  value={homeInsurancePeriod}
+                  onChange={(e) =>
+                    updateFormState(mortgageId, {
+                      homeInsurancePeriod: e.target.value as InsurancePeriod,
+                    })
+                  }
+                >
+                  <option value="annual">Anual</option>
+                  <option value="monthly">Mensual</option>
+                </select>
+              </div>
+            </div>
           </fieldset>
 
           <div className="form-actions">

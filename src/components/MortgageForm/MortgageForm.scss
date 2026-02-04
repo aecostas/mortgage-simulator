@@ -113,6 +113,40 @@
   color: #666;
 }
 
+.insurance-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+
+  .insurance-amount {
+    flex: 1;
+  }
+
+  .insurance-period {
+    flex: 0 0 120px;
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+      background: white;
+      cursor: pointer;
+
+      &:focus {
+        outline: none;
+        border-color: #0066cc;
+      }
+    }
+  }
+}
+
 .form-divider {
   border: none;
   border-top: 1px solid #e0e0e0;
@@ -162,9 +196,34 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    
+
     .form-group {
       margin-bottom: 10px;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+      background: white;
+      cursor: pointer;
+
+      &:focus {
+        outline: none;
+        border-color: #0066cc;
+      }
+    }
+
+    .period-two-cols {
+      display: flex;
+      gap: 12px;
+
+      .form-group {
+        flex: 1;
+        margin-bottom: 0;
+      }
     }
   }
 }

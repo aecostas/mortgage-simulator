@@ -49,7 +49,18 @@ function App() {
         <div className="app-table-section">
           <div className="app-table-wrapper">
             {mortgage.schedule.length > 0 ? (
-              <AmortizationTable schedule={mortgage.schedule} />
+              <AmortizationTable
+                schedule={mortgage.schedule}
+                monthlyInsurance={
+                  ((mortgage.formState.lifeInsurancePeriod ?? 'annual') === 'annual'
+                    ? (mortgage.formState.lifeInsuranceAmount ?? 0) / 12
+                    : mortgage.formState.lifeInsuranceAmount ?? 0) +
+                  ((mortgage.formState.homeInsurancePeriod ?? 'annual') === 'annual'
+                    ? (mortgage.formState.homeInsuranceAmount ?? 0) / 12
+                    : mortgage.formState.homeInsuranceAmount ?? 0)
+                }
+                euriborPaths={mortgage.euriborPaths}
+              />
             ) : (
               <div className="app-empty-state">
                 <p>Complete el formulario para ver la tabla de amortización</p>

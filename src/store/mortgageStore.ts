@@ -1,12 +1,26 @@
-import { create } from 'zustand';
-import { calculateAmortization } from '../utils/amortization';
-import type { InterestPeriod, MortgageConfig, AmortizationRow } from '../utils/amortization';
+import { create } from "zustand";
+import {
+  calculateAmortization,
+  generateEuriborPath,
+} from "../utils/amortization";
+import type {
+  InterestPeriod,
+  MortgageConfig,
+  AmortizationRow,
+  EuriborPaths,
+} from "../utils/amortization";
+
+export type InsurancePeriod = "annual" | "monthly";
 
 export interface MortgageFormState {
   name: string;
   principal: number;
   months: number;
   periods: InterestPeriod[];
+  lifeInsuranceAmount: number;
+  lifeInsurancePeriod: InsurancePeriod;
+  homeInsuranceAmount: number;
+  homeInsurancePeriod: InsurancePeriod;
 }
 
 export interface MortgageTab {
@@ -14,13 +28,26 @@ export interface MortgageTab {
   name: string;
   formState: MortgageFormState;
   schedule: AmortizationRow[];
+  /** Paths de Euribor (%) por periodo variable (índice 0-based → valores mensuales) */
+  euriborPaths?: EuriborPaths;
 }
 
 const defaultFormState: MortgageFormState = {
-  name: '',
-  principal: 100000,
+  name: "",
+  principal: 208000,
   months: 360,
-  periods: [{ startMonth: 1, endMonth: 360, annualInterestRate: 3.5 }],
+  periods: [
+    {
+      startMonth: 1,
+      endMonth: 360,
+      interestType: "fixed",
+      annualInterestRate: 3.5,
+    },
+  ],
+  lifeInsuranceAmount: 0,
+  lifeInsurancePeriod: "annual",
+  homeInsuranceAmount: 0,
+  homeInsurancePeriod: "annual",
 };
 
 interface MortgageStore {
@@ -37,13 +64,13 @@ interface MortgageStore {
 export const useMortgageStore = create<MortgageStore>((set, get) => ({
   mortgages: [
     {
-      id: '1',
-      name: 'Hipoteca 1',
+      id: "1",
+      name: "Hipoteca 1",
       formState: { ...defaultFormState },
       schedule: [],
     },
   ],
-  activeMortgageId: '1',
+  activeMortgageId: "1",
 
   addMortgage: () => {
     const newId = String(Date.now());
@@ -51,8 +78,12 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
     const newMortgage: MortgageTab = {
       id: newId,
       name: `Hipoteca ${mortgages.length + 1}`,
-      formState: { ...defaultFormState, name: `Hipoteca ${mortgages.length + 1}` },
+      formState: {
+        ...defaultFormState,
+        name: `Hipoteca ${mortgages.length + 1}`,
+      },
       schedule: [],
+      euriborPaths: undefined,
     };
     set((state) => ({
       mortgages: [...state.mortgages, newMortgage],
@@ -65,7 +96,8 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
     const { mortgages, activeMortgageId } = get();
     if (mortgages.length === 1) return;
     const filtered = mortgages.filter((m) => m.id !== id);
-    const newActiveId = activeMortgageId === id ? filtered[0].id : activeMortgageId;
+    const newActiveId =
+      activeMortgageId === id ? filtered[0].id : activeMortgageId;
     set({ mortgages: filtered, activeMortgageId: newActiveId });
   },
 
@@ -86,7 +118,7 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
               formState: { ...m.formState, ...state },
               name: state.name !== undefined ? state.name : m.name,
             }
-          : m
+          : m,
       ),
     }));
   },
@@ -98,12 +130,37 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
       name: mortgage.formState.name,
       principal: mortgage.formState.principal,
       months: mortgage.formState.months,
-      periods: [...mortgage.formState.periods].sort((a, b) => a.startMonth - b.startMonth),
+      periods: [...mortgage.formState.periods].sort(
+        (a, b) => a.startMonth - b.startMonth,
+      ),
     };
     try {
-      const schedule = calculateAmortization(cfg);
+      const sortedPeriods = [...cfg.periods].sort(
+        (a, b) => a.startMonth - b.startMonth,
+      );
+      const months = cfg.months;
+      const euriborPaths: EuriborPaths = {};
+      for (let i = 0; i < sortedPeriods.length; i++) {
+        const p = sortedPeriods[i];
+        if ((p.interestType ?? "fixed") === "variable") {
+          const start = p.startMonth;
+          const end = Math.min(p.endMonth, months);
+          const periodMonths = end - start + 1;
+          const min = p.euriborMin ?? 2;
+          const max = p.euriborMax ?? 5;
+          const vol = Math.max(0, Math.min(5, p.euriborVolatility ?? 2));
+          euriborPaths[i] = generateEuriborPath(
+            periodMonths,
+            min,
+            max,
+            vol,
+          );
+        }
+      }
+      const schedule = calculateAmortization(cfg, euriborPaths);
       const formState = config
         ? {
+            ...mortgage.formState,
             name: config.name ?? mortgage.formState.name,
             principal: config.principal,
             months: config.months,
@@ -112,7 +169,17 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
         : mortgage.formState;
       set((prev) => ({
         mortgages: prev.mortgages.map((m) =>
-          m.id === id ? { ...m, schedule, name: cfg.name || m.name, formState } : m
+          m.id === id
+            ? {
+                ...m,
+                schedule,
+                euriborPaths: Object.keys(euriborPaths).length
+                  ? euriborPaths
+                  : undefined,
+                name: cfg.name || m.name,
+                formState,
+              }
+            : m,
         ),
       }));
     } catch (error) {
