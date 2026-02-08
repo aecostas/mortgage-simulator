@@ -27,9 +27,10 @@ export function AmortizationTable({
 
   const totalInterest = schedule.reduce((sum, row) => sum + row.interestPayment, 0);
   const maxPayment = schedule.length > 0 ? Math.max(...schedule.map((row) => row.payment)) : 0;
+  const insurancePerRow = (row: AmortizationRow) => row.monthlyInsurance ?? monthlyInsurance;
   const maxTotalWithInsurance =
     schedule.length > 0
-      ? Math.max(...schedule.map((row) => row.payment + monthlyInsurance))
+      ? Math.max(...schedule.map((row) => row.payment + insurancePerRow(row)))
       : 0;
 
   const euriborSeries =
@@ -85,7 +86,7 @@ export function AmortizationTable({
                   <td>{row.month}</td>
                   <td>{row.period}</td>
                   <td>{formatCurrency(row.payment)}</td>
-                  <td>{formatCurrency(row.payment + monthlyInsurance)}</td>
+                  <td>{formatCurrency(row.payment + insurancePerRow(row))}</td>
                   <td>{formatCurrency(row.principalPayment)}</td>
                   <td>{formatCurrency(row.interestPayment)}</td>
                   <td>{formatCurrency(row.remainingBalance)}</td>

@@ -1,0 +1,27 @@
+.comparison-chart {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  overflow: auto;
+  height: 100%;
+
+  &--empty {
+    align-items: center;
+    justify-content: center;
+    color: #666;
+
+    p {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+  }
+
+  &__chart {
+    min-height: 340px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem;
+  }
+}

@@ -4,6 +4,8 @@ interface Tab {
   id: string;
   label: string;
   content: React.ReactNode;
+  /** Si es true, la pestaña no muestra botón cerrar y no se puede eliminar */
+  fixed?: boolean;
 }
 
 interface TabsProps {
@@ -24,7 +26,7 @@ export function Tabs({ tabs, activeTabId, onTabChange, onTabClose }: TabsProps) 
             onClick={() => onTabChange(tab.id)}
           >
             <span className="tab-label">{tab.label}</span>
-            {onTabClose && tabs.length > 1 && (
+            {onTabClose && !tab.fixed && tabs.filter((t) => !t.fixed).length > 1 && (
               <button
                 className="tab-close"
                 onClick={(e) => {

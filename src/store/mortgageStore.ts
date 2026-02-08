@@ -10,17 +10,11 @@ import type {
   EuriborPaths,
 } from "../utils/amortization";
 
-export type InsurancePeriod = "annual" | "monthly";
-
 export interface MortgageFormState {
   name: string;
   principal: number;
   months: number;
   periods: InterestPeriod[];
-  lifeInsuranceAmount: number;
-  lifeInsurancePeriod: InsurancePeriod;
-  homeInsuranceAmount: number;
-  homeInsurancePeriod: InsurancePeriod;
 }
 
 export interface MortgageTab {
@@ -42,12 +36,12 @@ const defaultFormState: MortgageFormState = {
       endMonth: 360,
       interestType: "fixed",
       annualInterestRate: 3.5,
+      lifeInsuranceAmount: 0,
+      lifeInsurancePeriod: "annual",
+      homeInsuranceAmount: 0,
+      homeInsurancePeriod: "annual",
     },
   ],
-  lifeInsuranceAmount: 0,
-  lifeInsurancePeriod: "annual",
-  homeInsuranceAmount: 0,
-  homeInsurancePeriod: "annual",
 };
 
 interface MortgageStore {

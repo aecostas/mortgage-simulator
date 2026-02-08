@@ -1,5 +1,7 @@
 export type InterestType = 'fixed' | 'variable';
 
+export type InsurancePeriodType = 'annual' | 'monthly';
+
 export interface InterestPeriod {
   startMonth: number; // Mes inicial (1-based)
   endMonth: number; // Mes final (inclusive)
@@ -10,6 +12,11 @@ export interface InterestPeriod {
   euriborMin?: number; // Mínimo Euribor (%)
   euriborMax?: number; // Máximo Euribor (%)
   euriborVolatility?: number; // 0 estable, 5 muy dinámico
+  // Seguros aplicados solo en este periodo:
+  lifeInsuranceAmount?: number;
+  lifeInsurancePeriod?: InsurancePeriodType;
+  homeInsuranceAmount?: number;
+  homeInsurancePeriod?: InsurancePeriodType;
 }
 
 export interface MortgageConfig {
@@ -74,6 +81,19 @@ export interface AmortizationRow {
   interestPayment: number;
   remainingBalance: number;
   period: number; // Número del periodo (1-based)
+  /** Importe mensual de seguros (vida + hogar) en este mes, según el periodo */
+  monthlyInsurance?: number;
+}
+
+/** Calcula el importe mensual de seguros para un periodo (vida + hogar). */
+function getMonthlyInsurance(period: InterestPeriod): number {
+  const life = period.lifeInsuranceAmount ?? 0;
+  const lifeMonthly =
+    (period.lifeInsurancePeriod ?? 'annual') === 'annual' ? life / 12 : life;
+  const home = period.homeInsuranceAmount ?? 0;
+  const homeMonthly =
+    (period.homeInsurancePeriod ?? 'annual') === 'annual' ? home / 12 : home;
+  return lifeMonthly + homeMonthly;
 }
 
 function getMonthlyRateFixed(period: InterestPeriod): number {
@@ -143,6 +163,7 @@ export function calculateAmortization(
           interestPayment,
           remainingBalance: Math.max(0, remainingBalance),
           period: periodIndex + 1,
+          monthlyInsurance: getMonthlyInsurance(period),
         });
       }
     } else {
@@ -182,6 +203,7 @@ export function calculateAmortization(
             interestPayment,
             remainingBalance: Math.max(0, remainingBalance),
             period: periodIndex + 1,
+            monthlyInsurance: getMonthlyInsurance(period),
           });
         }
         m += blockMonths;

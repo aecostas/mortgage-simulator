@@ -1,6 +1,7 @@
 import { MortgageForm } from './components/MortgageForm/MortgageForm';
 import { AmortizationTable } from './components/AmortizationTable/AmortizationTable';
 import { Tabs } from './components/Tabs/Tabs';
+import { ComparisonChart } from './components/ComparisonChart/ComparisonChart';
 import { useMortgageStore } from './store/mortgageStore';
 import './App.scss';
 
@@ -32,7 +33,18 @@ function App() {
     }
   };
 
-  const tabs = mortgages.map((mortgage) => ({
+  const comparisonTab = {
+    id: 'comparacion',
+    label: 'Comparación',
+    fixed: true as const,
+    content: (
+      <div className="app-layout app-layout--full">
+        <ComparisonChart />
+      </div>
+    ),
+  };
+
+  const mortgageTabs = mortgages.map((mortgage) => ({
     id: mortgage.id,
     label: mortgage.name,
     content: (
@@ -51,14 +63,6 @@ function App() {
             {mortgage.schedule.length > 0 ? (
               <AmortizationTable
                 schedule={mortgage.schedule}
-                monthlyInsurance={
-                  ((mortgage.formState.lifeInsurancePeriod ?? 'annual') === 'annual'
-                    ? (mortgage.formState.lifeInsuranceAmount ?? 0) / 12
-                    : mortgage.formState.lifeInsuranceAmount ?? 0) +
-                  ((mortgage.formState.homeInsurancePeriod ?? 'annual') === 'annual'
-                    ? (mortgage.formState.homeInsuranceAmount ?? 0) / 12
-                    : mortgage.formState.homeInsuranceAmount ?? 0)
-                }
                 euriborPaths={mortgage.euriborPaths}
               />
             ) : (
@@ -72,12 +76,15 @@ function App() {
     ),
   }));
 
+  const tabs = [comparisonTab, ...mortgageTabs];
+  const activeTabId = activeMortgageId ?? (mortgages[0]?.id ?? 'comparacion');
+
   return (
     <div className="app-page">
       <h1 className="app-title">Calculadora de Hipoteca</h1>
       <Tabs
         tabs={tabs}
-        activeTabId={activeMortgageId ?? '1'}
+        activeTabId={activeTabId}
         onTabChange={handleTabChange}
         onTabClose={removeMortgage}
       />
