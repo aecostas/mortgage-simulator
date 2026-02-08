@@ -9,6 +9,7 @@ function App() {
   const mortgages = useMortgageStore((state) => state.mortgages);
   const activeMortgageId = useMortgageStore((state) => state.activeMortgageId);
   const addMortgage = useMortgageStore((state) => state.addMortgage);
+  const cloneMortgage = useMortgageStore((state) => state.cloneMortgage);
   const removeMortgage = useMortgageStore((state) => state.removeMortgage);
   const setActiveMortgageId = useMortgageStore((state) => state.setActiveMortgageId);
   const calculateSchedule = useMortgageStore((state) => state.calculateSchedule);
@@ -23,6 +24,14 @@ function App() {
 
   const handleAddMortgage = () => {
     addMortgage();
+  };
+
+  const handleCloneMortgage = (mortgageId: string) => {
+    try {
+      cloneMortgage(mortgageId);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Error al clonar la hipoteca');
+    }
   };
 
   const handleTabChange = (tabId: string) => {
@@ -55,6 +64,7 @@ function App() {
               key={mortgage.id}
               mortgageId={mortgage.id}
               onSubmit={(config) => handleFormSubmit(mortgage.id, config)}
+              onClone={() => handleCloneMortgage(mortgage.id)}
             />
           </div>
         </div>

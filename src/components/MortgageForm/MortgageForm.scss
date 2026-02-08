@@ -7,13 +7,38 @@
   flex-direction: column;
   min-height: 100%;
   
-  .card-title {
-    padding: 20px;
-    margin: 0;
-    border-bottom: 1px solid #e0e0e0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #333;
+  .name-with-clone {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    input {
+      flex: 1;
+    }
+  }
+
+  .clone-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: #666;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+
+    &:hover {
+      color: #0066cc;
+      background: rgba(0, 102, 204, 0.08);
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.3);
+    }
   }
   
   .card-body {

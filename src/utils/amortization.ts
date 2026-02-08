@@ -47,7 +47,9 @@ export function generateEuriborPath(
   const min = Math.min(euriborMin, euriborMax);
   const max = Math.max(euriborMin, euriborMax);
   const range = max - min;
-  const stepScale = (volatility / 5) * range * 0.25;
+  // Factor reducido para que "baja" volatilidad sea suave; escala cuadrática suaviza más los valores bajos
+  const volNorm = volatility / 5;
+  const stepScale = volNorm * volNorm * range * 0.15;
 
   let rng: () => number;
   if (seed != null) {

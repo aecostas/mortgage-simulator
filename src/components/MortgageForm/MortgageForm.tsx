@@ -10,9 +10,10 @@ import './MortgageForm.scss';
 interface MortgageFormProps {
   mortgageId: string;
   onSubmit: (config: MortgageConfig) => void;
+  onClone?: () => void;
 }
 
-export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
+export function MortgageForm({ mortgageId, onSubmit, onClone }: MortgageFormProps) {
   const mortgage = useMortgageStore((state) => state.getMortgage(mortgageId));
   const updateFormState = useMortgageStore((state) => state.updateFormState);
 
@@ -143,19 +144,34 @@ export function MortgageForm({ mortgageId, onSubmit }: MortgageFormProps) {
 
   return (
     <div className="mortgage-form-card">
-      <h2 className="card-title">Configuración de Hipoteca</h2>
       <div className="card-body">
         <form onSubmit={handleSubmit}>
           <fieldset className="form-section">
-            <div className="form-group">
+            <div className="form-group form-group--name">
               <label htmlFor="name">Nombre de la Hipoteca</label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Ej: Hipoteca Principal"
-              />
+              <div className="name-with-clone">
+                <input
+                  type="text"
+                  id="name"
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="Ej: Hipoteca Principal"
+                />
+                {onClone && (
+                  <button
+                    type="button"
+                    className="clone-btn"
+                    onClick={onClone}
+                    title="Clonar hipoteca"
+                    aria-label="Clonar hipoteca"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="form-group">

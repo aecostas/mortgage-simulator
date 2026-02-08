@@ -48,6 +48,7 @@ interface MortgageStore {
   mortgages: MortgageTab[];
   activeMortgageId: string | null;
   addMortgage: () => string;
+  cloneMortgage: (id: string) => string;
   removeMortgage: (id: string) => void;
   setActiveMortgageId: (id: string) => void;
   getMortgage: (id: string) => MortgageTab | undefined;
@@ -83,6 +84,39 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
       mortgages: [...state.mortgages, newMortgage],
       activeMortgageId: newId,
     }));
+    return newId;
+  },
+
+  cloneMortgage: (id: string) => {
+    const source = get().getMortgage(id);
+    if (!source) return id;
+    const newId = String(Date.now());
+    const cloneName = `${source.name.trim() || "Hipoteca"} (copia)`;
+    const newMortgage: MortgageTab = {
+      id: newId,
+      name: cloneName,
+      formState: {
+        ...source.formState,
+        name: cloneName,
+        principal: source.formState.principal,
+        months: source.formState.months,
+        periods: source.formState.periods.map((p) => ({ ...p })),
+      },
+      schedule: [],
+      euriborPaths: undefined,
+    };
+    set((state) => ({
+      mortgages: [...state.mortgages, newMortgage],
+      activeMortgageId: newId,
+    }));
+    get().calculateSchedule(newId, {
+      name: cloneName,
+      principal: newMortgage.formState.principal,
+      months: newMortgage.formState.months,
+      periods: [...newMortgage.formState.periods].sort(
+        (a, b) => a.startMonth - b.startMonth,
+      ),
+    });
     return newId;
   },
 
