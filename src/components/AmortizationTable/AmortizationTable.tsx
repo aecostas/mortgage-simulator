@@ -28,10 +28,13 @@ export function AmortizationTable({
   const totalInterest = schedule.reduce((sum, row) => sum + row.interestPayment, 0);
   const maxPayment = schedule.length > 0 ? Math.max(...schedule.map((row) => row.payment)) : 0;
   const insurancePerRow = (row: AmortizationRow) => row.monthlyInsurance ?? monthlyInsurance;
-  const maxTotalWithInsurance =
-    schedule.length > 0
-      ? Math.max(...schedule.map((row) => row.payment + insurancePerRow(row)))
-      : 0;
+  const extraItemsPerRow = (row: AmortizationRow) => row.monthlyExtraItems ?? 0;
+  const totalExtraPerRow = (row: AmortizationRow) =>
+    row.payment + insurancePerRow(row) + extraItemsPerRow(row);
+  const maxTotalWithExtras =
+    schedule.length > 0 ? Math.max(...schedule.map(totalExtraPerRow)) : 0;
+  const totalPaid =
+    schedule.reduce((sum, row) => sum + totalExtraPerRow(row), 0);
 
   const euriborSeries =
     euriborPaths && Object.keys(euriborPaths).length > 0
@@ -57,13 +60,17 @@ export function AmortizationTable({
             <span className="amortization-summary-value">{formatCurrency(totalInterest)}</span>
           </div>
           <div className="amortization-summary-item">
+            <span className="amortization-summary-label">Total pagado (cuota + seguros + otros)</span>
+            <span className="amortization-summary-value">{formatCurrency(totalPaid)}</span>
+          </div>
+          <div className="amortization-summary-item">
             <span className="amortization-summary-label">Cuota máxima</span>
             <span className="amortization-summary-value">{formatCurrency(maxPayment)}</span>
           </div>
           <div className="amortization-summary-item">
-            <span className="amortization-summary-label">Máximo total (cuota + seguros)</span>
+            <span className="amortization-summary-label">Máximo total (cuota + seguros + otros)</span>
             <span className="amortization-summary-value">
-              {formatCurrency(maxTotalWithInsurance)}
+              {formatCurrency(maxTotalWithExtras)}
             </span>
           </div>
         </div>
@@ -86,7 +93,7 @@ export function AmortizationTable({
                   <td>{row.month}</td>
                   <td>{row.period}</td>
                   <td>{formatCurrency(row.payment)}</td>
-                  <td>{formatCurrency(row.payment + insurancePerRow(row))}</td>
+                  <td>{formatCurrency(totalExtraPerRow(row))}</td>
                   <td>{formatCurrency(row.principalPayment)}</td>
                   <td>{formatCurrency(row.interestPayment)}</td>
                   <td>{formatCurrency(row.remainingBalance)}</td>

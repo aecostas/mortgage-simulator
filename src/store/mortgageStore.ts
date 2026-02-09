@@ -40,6 +40,7 @@ const defaultFormState: MortgageFormState = {
       lifeInsurancePeriod: "annual",
       homeInsuranceAmount: 0,
       homeInsurancePeriod: "annual",
+      extraItems: [],
     },
   ],
 };
@@ -100,7 +101,10 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
         name: cloneName,
         principal: source.formState.principal,
         months: source.formState.months,
-        periods: source.formState.periods.map((p) => ({ ...p })),
+        periods: source.formState.periods.map((p) => ({
+          ...p,
+          extraItems: p.extraItems?.map((e) => ({ ...e })) ?? [],
+        })),
       },
       schedule: [],
       euriborPaths: undefined,

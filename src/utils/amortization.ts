@@ -2,6 +2,13 @@ export type InterestType = 'fixed' | 'variable';
 
 export type InsurancePeriodType = 'annual' | 'monthly';
 
+/** Ítem genérico que se suma al pago (ej. comunidad, IBI). */
+export interface ExtraItem {
+  name: string;
+  amount: number;
+  period: InsurancePeriodType;
+}
+
 export interface InterestPeriod {
   startMonth: number; // Mes inicial (1-based)
   endMonth: number; // Mes final (inclusive)
@@ -17,6 +24,8 @@ export interface InterestPeriod {
   lifeInsurancePeriod?: InsurancePeriodType;
   homeInsuranceAmount?: number;
   homeInsurancePeriod?: InsurancePeriodType;
+  // Ítems adicionales (nombre + cantidad, anual o mensual)
+  extraItems?: ExtraItem[];
 }
 
 export interface MortgageConfig {
@@ -85,6 +94,8 @@ export interface AmortizationRow {
   period: number; // Número del periodo (1-based)
   /** Importe mensual de seguros (vida + hogar) en este mes, según el periodo */
   monthlyInsurance?: number;
+  /** Importe mensual de ítems adicionales genéricos en este mes */
+  monthlyExtraItems?: number;
 }
 
 /** Calcula el importe mensual de seguros para un periodo (vida + hogar). */
@@ -96,6 +107,16 @@ function getMonthlyInsurance(period: InterestPeriod): number {
   const homeMonthly =
     (period.homeInsurancePeriod ?? 'annual') === 'annual' ? home / 12 : home;
   return lifeMonthly + homeMonthly;
+}
+
+/** Calcula el importe mensual de ítems adicionales para un periodo. */
+function getMonthlyExtraItems(period: InterestPeriod): number {
+  const items = period.extraItems ?? [];
+  return items.reduce((sum, item) => {
+    const monthly =
+      (item.period ?? 'annual') === 'annual' ? item.amount / 12 : item.amount;
+    return sum + monthly;
+  }, 0);
 }
 
 function getMonthlyRateFixed(period: InterestPeriod): number {
@@ -166,6 +187,7 @@ export function calculateAmortization(
           remainingBalance: Math.max(0, remainingBalance),
           period: periodIndex + 1,
           monthlyInsurance: getMonthlyInsurance(period),
+          monthlyExtraItems: getMonthlyExtraItems(period),
         });
       }
     } else {
@@ -206,6 +228,7 @@ export function calculateAmortization(
             remainingBalance: Math.max(0, remainingBalance),
             period: periodIndex + 1,
             monthlyInsurance: getMonthlyInsurance(period),
+            monthlyExtraItems: getMonthlyExtraItems(period),
           });
         }
         m += blockMonths;

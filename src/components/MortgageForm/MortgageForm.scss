@@ -261,6 +261,88 @@
       margin-bottom: 12px;
     }
   }
+
+  .period-extra-items {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e8e8e8;
+
+    .extra-items-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+
+      .extra-items-title {
+        font-weight: 500;
+        color: #555;
+        font-size: 0.9rem;
+      }
+
+      .add-extra-item-btn {
+        padding: 6px 12px;
+        border: 1px dashed #999;
+        background: white;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        color: #666;
+        cursor: pointer;
+
+        &:hover {
+          border-color: #0066cc;
+          color: #0066cc;
+        }
+      }
+    }
+
+    .extra-item-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+
+      &:last-of-type {
+        margin-bottom: 0;
+      }
+
+      .extra-item-line-name {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+
+        .extra-item-name {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .delete-extra-item {
+          flex-shrink: 0;
+          background: none;
+          border: none;
+          font-size: 1.1rem;
+          cursor: pointer;
+          padding: 6px;
+          opacity: 0.7;
+
+          &:hover {
+            opacity: 1;
+          }
+        }
+      }
+
+      .extra-item-line-amount.insurance-row {
+        margin-bottom: 0;
+
+        .insurance-amount {
+          flex: 1;
+        }
+
+        .insurance-period {
+          flex: 0 0 120px;
+        }
+      }
+    }
+  }
 }
 
 .add-period-button {

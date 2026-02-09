@@ -3,6 +3,7 @@ import type {
   InterestPeriod,
   InterestType,
   InsurancePeriodType,
+  ExtraItem,
 } from '../../utils/amortization';
 import { useMortgageStore } from '../../store/mortgageStore';
 import './MortgageForm.scss';
@@ -31,6 +32,7 @@ export function MortgageForm({ mortgageId, onSubmit, onClone }: MortgageFormProp
         lifeInsurancePeriod: 'annual',
         homeInsuranceAmount: 0,
         homeInsurancePeriod: 'annual',
+        extraItems: [],
       },
     ],
   };
@@ -87,6 +89,7 @@ export function MortgageForm({ mortgageId, onSubmit, onClone }: MortgageFormProp
           lifeInsurancePeriod: 'annual',
           homeInsuranceAmount: 0,
           homeInsurancePeriod: 'annual',
+          extraItems: [],
         },
       ],
     });
@@ -105,10 +108,11 @@ export function MortgageForm({ mortgageId, onSubmit, onClone }: MortgageFormProp
       ...lastPeriod,
       startMonth: lastPeriod.endMonth + 1,
       endMonth: months,
-      lifeInsuranceAmount: lastPeriod.lifeInsuranceAmount ?? 0,
+          lifeInsuranceAmount: lastPeriod.lifeInsuranceAmount ?? 0,
       lifeInsurancePeriod: lastPeriod.lifeInsurancePeriod ?? 'annual',
       homeInsuranceAmount: lastPeriod.homeInsuranceAmount ?? 0,
       homeInsurancePeriod: lastPeriod.homeInsurancePeriod ?? 'annual',
+      extraItems: lastPeriod.extraItems ? [...lastPeriod.extraItems] : [],
     };
     updateFormState(mortgageId, { periods: [...periods, newPeriod] });
   };
@@ -122,10 +126,46 @@ export function MortgageForm({ mortgageId, onSubmit, onClone }: MortgageFormProp
     updateFormState(mortgageId, { periods: newPeriods });
   };
 
+  const updatePeriodExtraItems = (periodIndex: number, extraItems: ExtraItem[]) => {
+    updatePeriod(periodIndex, 'extraItems', extraItems);
+  };
+
+  const addExtraItem = (periodIndex: number) => {
+    const period = periods[periodIndex];
+    const current = period?.extraItems ?? [];
+    updatePeriodExtraItems(periodIndex, [
+      ...current,
+      { name: '', amount: 0, period: 'annual' },
+    ]);
+  };
+
+  const removeExtraItem = (periodIndex: number, itemIndex: number) => {
+    const period = periods[periodIndex];
+    const current = period?.extraItems ?? [];
+    updatePeriodExtraItems(
+      periodIndex,
+      current.filter((_, i) => i !== itemIndex)
+    );
+  };
+
+  const updateExtraItem = (
+    periodIndex: number,
+    itemIndex: number,
+    field: keyof ExtraItem,
+    value: string | number
+  ) => {
+    const period = periods[periodIndex];
+    const current = period?.extraItems ?? [];
+    const updated = current.map((item, i) =>
+      i === itemIndex ? { ...item, [field]: value } : item
+    );
+    updatePeriodExtraItems(periodIndex, updated);
+  };
+
   const updatePeriod = (
     index: number,
     field: keyof InterestPeriod,
-    value: number | InterestType | InsurancePeriodType
+    value: number | InterestType | InsurancePeriodType | ExtraItem[]
   ) => {
     const newPeriods = [...periods];
     const next = { ...newPeriods[index], [field]: value };
@@ -582,6 +622,93 @@ export function MortgageForm({ mortgageId, onSubmit, onClone }: MortgageFormProp
                               <option value="monthly">Mensual</option>
                             </select>
                           </div>
+                        </div>
+                        <div className="period-extra-items">
+                          <div className="extra-items-header">
+                            <span className="extra-items-title">Gastos adicionales</span>
+                            <button
+                              type="button"
+                              className="add-extra-item-btn"
+                              onClick={() => addExtraItem(originalIndex)}
+                              aria-label="Añadir gasto adicional"
+                            >
+                              ➕ Añadir
+                            </button>
+                          </div>
+                          {(period.extraItems ?? []).map((item, itemIdx) => (
+                            <div key={itemIdx} className="extra-item-row">
+                              <div className="extra-item-line-name">
+                                <div className="form-group extra-item-name">
+                                  <label htmlFor={`extra-name-${index}-${itemIdx}`}>Nombre</label>
+                                  <input
+                                    type="text"
+                                    id={`extra-name-${index}-${itemIdx}`}
+                                    value={item.name}
+                                    onChange={(e) =>
+                                      updateExtraItem(
+                                        originalIndex,
+                                        itemIdx,
+                                        'name',
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Ej: Comunidad, IBI..."
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="delete-extra-item"
+                                  onClick={() => removeExtraItem(originalIndex, itemIdx)}
+                                  aria-label="Eliminar"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                              <div className="extra-item-line-amount insurance-row">
+                                <div className="form-group insurance-amount">
+                                  <label htmlFor={`extra-amount-${index}-${itemIdx}`}>Importe</label>
+                                  <div className="input-group">
+                                    <input
+                                      type="number"
+                                      id={`extra-amount-${index}-${itemIdx}`}
+                                      value={item.amount === 0 ? '' : item.amount}
+                                      onChange={(e) => {
+                                        const value = parseFloat(e.target.value);
+                                        updateExtraItem(
+                                          originalIndex,
+                                          itemIdx,
+                                          'amount',
+                                          isNaN(value) ? 0 : Math.max(0, value)
+                                        );
+                                      }}
+                                      min={0}
+                                      step={10}
+                                      placeholder="0"
+                                    />
+                                    <span className="input-unit">€</span>
+                                  </div>
+                                </div>
+                                <div className="form-group insurance-period">
+                                  <label htmlFor={`extra-period-${index}-${itemIdx}`}>Periodo</label>
+                                  <select
+                                    id={`extra-period-${index}-${itemIdx}`}
+                                    value={item.period ?? 'annual'}
+                                    onChange={(e) =>
+                                      updateExtraItem(
+                                        originalIndex,
+                                        itemIdx,
+                                        'period',
+                                        e.target.value as InsurancePeriodType
+                                      )
+                                    }
+                                  >
+                                    <option value="annual">Anual</option>
+                                    <option value="monthly">Mensual</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>

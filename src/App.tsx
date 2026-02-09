@@ -91,7 +91,9 @@ function App() {
 
   return (
     <div className="app-page">
-      <h1 className="app-title">Calculadora de Hipoteca</h1>
+      <header className="app-header">
+        <h1 className="app-title">Calculadora de Hipoteca</h1>
+      </header>
       <Tabs
         tabs={tabs}
         activeTabId={activeTabId}
