@@ -1,0 +1,94 @@
+.number-input-wrapper {
+  margin-bottom: 20px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+
+    .required {
+      color: #d32f2f;
+    }
+  }
+
+  // Cuando se usa dentro de insurance-row o period-two-cols
+  &.insurance-amount {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  // Cuando se usa dentro de period-two-cols
+  .period-two-cols & {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  // Cuando se usa dentro de insurance-row
+  .insurance-row & {
+    margin-bottom: 0;
+  }
+}
+
+.number-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .number-input {
+    flex: 1;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+    }
+
+    &::placeholder {
+      color: #999;
+    }
+
+    &:disabled {
+      background-color: #f5f5f5;
+      cursor: not-allowed;
+    }
+  }
+
+  .number-input-unit {
+    color: #666;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .number-input-button {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    background: #f5f5f5;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    min-width: 36px;
+    transition: background-color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: #e0e0e0;
+    }
+
+    &:active:not(:disabled) {
+      background: #d0d0d0;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}

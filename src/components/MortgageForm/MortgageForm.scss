@@ -7,39 +7,6 @@
   flex-direction: column;
   min-height: 100%;
   
-  .name-with-clone {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    input {
-      flex: 1;
-    }
-  }
-
-  .clone-btn {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-    border: none;
-    background: transparent;
-    color: #666;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-
-    &:hover {
-      color: #0066cc;
-      background: rgba(0, 102, 204, 0.08);
-    }
-
-    &:focus {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.3);
-    }
-  }
   
   .card-body {
     padding: 20px;
@@ -141,7 +108,7 @@
 .insurance-row {
   display: flex;
   gap: 16px;
-  align-items: flex-end;
+  align-items: flex-start;
   margin-bottom: 16px;
 
   &:last-of-type {
@@ -154,6 +121,15 @@
 
   .insurance-period {
     flex: 0 0 120px;
+    margin-bottom: 0;
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+      font-size: 0.9rem;
+    }
 
     select {
       width: 100%;
@@ -406,5 +382,37 @@
         background: #d0d0d0;
       }
     }
+  }
+}
+
+.form-select-trigger {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+
+  &:hover {
+    border-color: #0066cc;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+  }
+
+  &::after {
+    content: "▼";
+    font-size: 0.8rem;
+    color: #666;
+    margin-left: 8px;
   }
 }

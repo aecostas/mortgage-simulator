@@ -18,12 +18,75 @@
   border-bottom: 1px solid #ddd;
 }
 
+.app-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
 .app-title {
   margin: 0;
   text-align: left;
   color: #333;
   font-size: 1.5rem;
   font-weight: bold;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-mortgage-selector {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-width: 200px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  position: relative;
+
+  &:hover {
+    border-color: #0066cc;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+  }
+
+  &::after {
+    content: "▼";
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: #666;
+  }
+}
+
+.app-add-mortgage-btn {
+  padding: 8px 16px;
+  border: 1px solid #0066cc;
+  border-radius: 4px;
+  background: #0066cc;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: #0052a3;
+  }
+
+  &:active {
+    background: #003d7a;
+  }
 }
 
 .app-page > :last-child {
@@ -40,13 +103,6 @@
   min-height: 0;
   height: 100%;
   width: 100%;
-
-  &--full {
-    .comparison-chart {
-      flex: 1;
-      width: 100%;
-    }
-  }
 }
 
 .app-form-section {
@@ -69,7 +125,7 @@
   min-height: 0;
 }
 
-.app-table-section {
+.app-content-section {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -79,12 +135,15 @@
   height: 100%;
 }
 
-.app-table-wrapper {
+.app-content-wrapper {
   width: 100%;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .app-empty-state {

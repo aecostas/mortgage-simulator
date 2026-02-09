@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   calculateAmortization,
   generateEuriborPath,
@@ -57,16 +58,42 @@ interface MortgageStore {
   calculateSchedule: (id: string, config?: MortgageConfig) => void;
 }
 
-export const useMortgageStore = create<MortgageStore>((set, get) => ({
-  mortgages: [
-    {
-      id: "1",
-      name: "Hipoteca 1",
-      formState: { ...defaultFormState },
-      schedule: [],
-    },
-  ],
-  activeMortgageId: "1",
+// Función para validar y normalizar el estado cargado desde localStorage
+const normalizeState = (state: Partial<MortgageStore>): MortgageStore => {
+  const mortgages = state.mortgages && state.mortgages.length > 0
+    ? state.mortgages
+    : [
+        {
+          id: "1",
+          name: "Hipoteca 1",
+          formState: { ...defaultFormState },
+          schedule: [],
+        },
+      ];
+
+  // Asegurar que activeMortgageId apunte a una hipoteca válida
+  const activeMortgageId = state.activeMortgageId && mortgages.some(m => m.id === state.activeMortgageId)
+    ? state.activeMortgageId
+    : mortgages[0]?.id ?? "1";
+
+  return {
+    mortgages,
+    activeMortgageId,
+  } as MortgageStore;
+};
+
+export const useMortgageStore = create<MortgageStore>()(
+  persist(
+    (set, get) => ({
+      mortgages: [
+        {
+          id: "1",
+          name: "Hipoteca 1",
+          formState: { ...defaultFormState },
+          schedule: [],
+        },
+      ],
+      activeMortgageId: "1",
 
   addMortgage: () => {
     const newId = String(Date.now());
@@ -218,4 +245,25 @@ export const useMortgageStore = create<MortgageStore>((set, get) => ({
       throw error;
     }
   },
-}));
+    }),
+    {
+      name: "mortgage-storage", // nombre de la clave en localStorage
+      version: 1, // versión del esquema de datos (útil para migraciones futuras)
+      onRehydrateStorage: () => (state) => {
+        // Validar y normalizar el estado después de cargarlo desde localStorage
+        if (state) {
+          const normalized = normalizeState(state);
+          // Si el estado necesita corrección, actualizarlo
+          if (
+            normalized.mortgages.length !== state.mortgages.length ||
+            normalized.activeMortgageId !== state.activeMortgageId ||
+            !state.mortgages.some(m => m.id === state.activeMortgageId)
+          ) {
+            state.mortgages = normalized.mortgages;
+            state.activeMortgageId = normalized.activeMortgageId;
+          }
+        }
+      },
+    }
+  )
+);
