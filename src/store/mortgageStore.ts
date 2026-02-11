@@ -58,7 +58,8 @@ interface MortgageStore {
   setActiveMortgageId: (id: string) => void;
   getMortgage: (id: string) => MortgageTab | undefined;
   updateFormState: (id: string, state: Partial<MortgageFormState>) => void;
-  calculateSchedule: (id: string, config?: MortgageConfig) => void;
+  updateEuriborPaths: (id: string, euriborPaths: EuriborPaths) => void;
+  calculateSchedule: (id: string, config?: MortgageConfig, euriborPaths?: EuriborPaths) => void;
 }
 
 // Función para validar y normalizar el estado cargado desde localStorage
@@ -187,7 +188,20 @@ export const useMortgageStore = create<MortgageStore>()(
     }));
   },
 
-  calculateSchedule: (id: string, config?: MortgageConfig) => {
+  updateEuriborPaths: (id: string, euriborPaths: EuriborPaths) => {
+    set((prev) => ({
+      mortgages: prev.mortgages.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              euriborPaths: Object.keys(euriborPaths).length > 0 ? euriborPaths : undefined,
+            }
+          : m,
+      ),
+    }));
+  },
+
+  calculateSchedule: (id: string, config?: MortgageConfig, providedEuriborPaths?: EuriborPaths) => {
     const mortgage = get().getMortgage(id);
     if (!mortgage) return;
     const cfg: MortgageConfig = config ?? {
@@ -204,22 +218,27 @@ export const useMortgageStore = create<MortgageStore>()(
         (a, b) => a.startMonth - b.startMonth,
       );
       const months = cfg.months;
-      const euriborPaths: EuriborPaths = {};
-      for (let i = 0; i < sortedPeriods.length; i++) {
-        const p = sortedPeriods[i];
-        if ((p.interestType ?? "fixed") === "variable") {
-          const start = p.startMonth;
-          const end = Math.min(p.endMonth, months);
-          const periodMonths = end - start + 1;
-          const min = p.euriborMin ?? 2;
-          const max = p.euriborMax ?? 5;
-          const vol = Math.max(0, Math.min(5, p.euriborVolatility ?? 2));
-          euriborPaths[i] = generateEuriborPath(
-            periodMonths,
-            min,
-            max,
-            vol,
-          );
+      // Si se proporcionan euriborPaths, usarlos; si no, generarlos
+      let euriborPaths: EuriborPaths = {};
+      if (providedEuriborPaths) {
+        euriborPaths = providedEuriborPaths;
+      } else {
+        for (let i = 0; i < sortedPeriods.length; i++) {
+          const p = sortedPeriods[i];
+          if ((p.interestType ?? "fixed") === "variable") {
+            const start = p.startMonth;
+            const end = Math.min(p.endMonth, months);
+            const periodMonths = end - start + 1;
+            const min = p.euriborMin ?? 2;
+            const max = p.euriborMax ?? 5;
+            const vol = Math.max(0, Math.min(5, p.euriborVolatility ?? 2));
+            euriborPaths[i] = generateEuriborPath(
+              periodMonths,
+              min,
+              max,
+              vol,
+            );
+          }
         }
       }
       const schedule = calculateAmortization(cfg, euriborPaths);

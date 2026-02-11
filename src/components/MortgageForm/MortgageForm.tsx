@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import debounce from "lodash.debounce";
 import type {
   MortgageConfig,
   InterestPeriod,
@@ -7,7 +8,9 @@ import type {
   ExtraItem,
   PartialAmortization,
   PartialAmortizationType,
+  EuriborPaths,
 } from "../../utils/amortization";
+import { generateEuriborPath } from "../../utils/amortization";
 import { useMortgageStore } from "../../store/mortgageStore";
 import {
   Dropdown,
@@ -15,6 +18,7 @@ import {
   NumberInput,
   InputWithCloneButton,
 } from "../../ui-components";
+import { EuriborChart, type EuriborSeries } from "../EuriborChart/EuriborChart";
 import "./MortgageForm.scss";
 
 // Helper component for Interest Type dropdown
@@ -201,7 +205,7 @@ function InsurancePeriodDropdown({
 
 interface MortgageFormProps {
   mortgageId: string;
-  onSubmit: (config: MortgageConfig) => void;
+  onSubmit: (config: MortgageConfig, euriborPaths?: EuriborPaths) => void;
   onClone?: () => void;
 }
 
@@ -212,6 +216,7 @@ export function MortgageForm({
 }: MortgageFormProps) {
   const mortgage = useMortgageStore((state) => state.getMortgage(mortgageId));
   const updateFormState = useMortgageStore((state) => state.updateFormState);
+  const updateEuriborPaths = useMortgageStore((state) => state.updateEuriborPaths);
 
   const formState = mortgage?.formState ?? {
     name: "",
@@ -241,8 +246,35 @@ export function MortgageForm({
     partialAmortizations = [],
   } = formState;
 
+  // Estado local para el input name (se actualiza inmediatamente)
+  const [localName, setLocalName] = useState(name);
+
+  // Sincronizar el estado local cuando cambie el valor del store externamente
+  useEffect(() => {
+    setLocalName(name);
+  }, [name]);
+
+  // Función debounced para actualizar el store (espera 500ms después de que el usuario deje de escribir)
+  const debouncedUpdateName = useMemo(
+    () =>
+      debounce((newName: string) => {
+        updateFormState(mortgageId, { name: newName });
+      }, 500),
+    [mortgageId, updateFormState],
+  );
+
+  // Limpiar el debounce cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      debouncedUpdateName.cancel();
+    };
+  }, [debouncedUpdateName]);
+
   const handleNameChange = (newName: string) => {
-    updateFormState(mortgageId, { name: newName });
+    // Actualizar el estado local inmediatamente para que el input responda al instante
+    setLocalName(newName);
+    // Actualizar el store después del debounce
+    debouncedUpdateName(newName);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -270,15 +302,49 @@ export function MortgageForm({
       return;
     }
 
-    onSubmit({
-      name,
-      principal,
-      months,
-      periods: sortedPeriods,
-      partialAmortizations: partialAmortizations.filter(
-        (pa) => pa.periodMonths > 0 && pa.amount > 0,
-      ),
-    });
+    // Usar los valores guardados si existen, o convertir euriborPreviewSeries a EuriborPaths
+    const savedPaths = mortgage?.euriborPaths;
+    const euriborPaths: EuriborPaths = {};
+    
+    if (savedPaths && Object.keys(savedPaths).length > 0) {
+      // Usar los valores guardados
+      for (let i = 0; i < sortedPeriods.length; i++) {
+        const period = sortedPeriods[i];
+        if (period.interestType === "variable" && savedPaths[i]) {
+          const periodMonths = period.endMonth - period.startMonth + 1;
+          // Solo usar si la longitud coincide
+          if (savedPaths[i].length === periodMonths) {
+            euriborPaths[i] = savedPaths[i];
+          }
+        }
+      }
+    } else {
+      // Convertir euriborPreviewSeries a EuriborPaths (índice del periodo -> valores)
+      for (let i = 0; i < sortedPeriods.length; i++) {
+        const period = sortedPeriods[i];
+        if (period.interestType === "variable") {
+          const series = euriborPreviewSeries.find(
+            (s) => s.startMonth === period.startMonth,
+          );
+          if (series) {
+            euriborPaths[i] = series.values;
+          }
+        }
+      }
+    }
+
+    onSubmit(
+      {
+        name,
+        principal,
+        months,
+        periods: sortedPeriods,
+        partialAmortizations: partialAmortizations.filter(
+          (pa) => pa.periodMonths > 0 && pa.amount > 0,
+        ),
+      },
+      Object.keys(euriborPaths).length > 0 ? euriborPaths : undefined,
+    );
   };
 
   const handleReset = () => {
@@ -388,6 +454,34 @@ export function MortgageForm({
       next.euriborMax = next.euriborMax ?? 5;
       next.euriborVolatility = next.euriborVolatility ?? 2;
     }
+    
+    // Si se cambian parámetros del euribor, limpiar los valores guardados para ese periodo
+    if (
+      field === "euriborMin" ||
+      field === "euriborMax" ||
+      field === "euriborVolatility" ||
+      field === "startMonth" ||
+      field === "endMonth"
+    ) {
+      // Encontrar el índice del periodo en sortedPeriods después del cambio
+      const sortedPeriodsAfter = [...newPeriods].sort(
+        (a, b) => a.startMonth - b.startMonth,
+      );
+      const periodIndexInSorted = sortedPeriodsAfter.findIndex(
+        (p) =>
+          p.startMonth === next.startMonth && p.endMonth === next.endMonth,
+      );
+      if (periodIndexInSorted >= 0 && mortgage?.euriborPaths) {
+        const updatedPaths = { ...mortgage.euriborPaths };
+        // Eliminar el valor guardado para este periodo (usando el índice en sortedPeriods)
+        delete updatedPaths[periodIndexInSorted];
+        updateEuriborPaths(
+          mortgageId,
+          Object.keys(updatedPaths).length > 0 ? updatedPaths : {},
+        );
+      }
+    }
+    
     newPeriods[index] = next;
     updateFormState(mortgageId, { periods: newPeriods });
   };
@@ -423,6 +517,87 @@ export function MortgageForm({
     (a, b) => a.startMonth - b.startMonth,
   );
 
+  // Generar datos del euribor para mostrar en el formulario (preview)
+  // Usa los valores guardados si existen, o genera nuevos con semilla fija
+  const euriborPreviewSeries: EuriborSeries[] = useMemo(() => {
+    const series: EuriborSeries[] = [];
+    const savedPaths = mortgage?.euriborPaths;
+    
+    for (let i = 0; i < sortedPeriods.length; i++) {
+      const period = sortedPeriods[i];
+      if (period.interestType === "variable") {
+        const periodMonths = period.endMonth - period.startMonth + 1;
+        let values: number[];
+        
+        // Si hay valores guardados para este periodo, usarlos
+        if (savedPaths && savedPaths[i] && savedPaths[i].length === periodMonths) {
+          values = savedPaths[i];
+        } else {
+          // Si no, generar nuevos con semilla fija para consistencia
+          const euriborMin = period.euriborMin ?? 2;
+          const euriborMax = period.euriborMax ?? 5;
+          const volatility = period.euriborVolatility ?? 2;
+          const seed = period.startMonth * 1000 + period.endMonth;
+          values = generateEuriborPath(
+            periodMonths,
+            euriborMin,
+            euriborMax,
+            volatility,
+            seed,
+          );
+        }
+        
+        series.push({
+          startMonth: period.startMonth,
+          values,
+        });
+      }
+    }
+    return series;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    JSON.stringify(
+      sortedPeriods.map((p) => ({
+        startMonth: p.startMonth,
+        endMonth: p.endMonth,
+        interestType: p.interestType,
+        euriborMin: p.euriborMin,
+        euriborMax: p.euriborMax,
+        euriborVolatility: p.euriborVolatility,
+      })),
+    ),
+    months,
+    mortgage?.euriborPaths,
+  ]);
+
+  // Función para recalcular el euribor de un periodo específico
+  const recalculateEuribor = (periodIndex: number) => {
+    const period = sortedPeriods[periodIndex];
+    if (period.interestType !== "variable") return;
+    
+    const periodMonths = period.endMonth - period.startMonth + 1;
+    const euriborMin = period.euriborMin ?? 2;
+    const euriborMax = period.euriborMax ?? 5;
+    const volatility = period.euriborVolatility ?? 2;
+    
+    // Generar nuevos valores sin semilla (aleatorios)
+    const newValues = generateEuriborPath(
+      periodMonths,
+      euriborMin,
+      euriborMax,
+      volatility,
+    );
+    
+    // Actualizar los valores guardados
+    const currentPaths = mortgage?.euriborPaths ?? {};
+    const updatedPaths: EuriborPaths = {
+      ...currentPaths,
+      [periodIndex]: newValues,
+    };
+    
+    updateEuriborPaths(mortgageId, updatedPaths);
+  };
+
   return (
     <div className="mortgage-form-card">
       <div className="card-body">
@@ -431,7 +606,7 @@ export function MortgageForm({
             <InputWithCloneButton
               id="name"
               label="Nombre de la Hipoteca"
-              value={name}
+              value={localName}
               onChange={handleNameChange}
               onClone={onClone}
               placeholder="Ej: Hipoteca Principal"
@@ -625,6 +800,30 @@ export function MortgageForm({
                             max={5}
                             step={0.5}
                           />
+                          {(() => {
+                            const periodSeries = euriborPreviewSeries.find(
+                              (s) => s.startMonth === period.startMonth,
+                            );
+                            return periodSeries ? (
+                              <div className="euribor-preview-chart">
+                                <div className="euribor-preview-header">
+                                  <EuriborChart
+                                    series={[periodSeries]}
+                                    width={400}
+                                    height={120}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="recalculate-euribor-btn"
+                                    onClick={() => recalculateEuribor(index)}
+                                    title="Recalcular Euribor"
+                                  >
+                                    🔄 Recalcular
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
                         </>
                       )}
 

@@ -416,3 +416,51 @@
     margin-left: 8px;
   }
 }
+
+.euribor-preview-chart {
+  margin-top: 12px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+
+  .euribor-preview-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .euribor-chart {
+    padding: 0;
+    background: transparent;
+    border-bottom: none;
+
+    .euribor-chart-title {
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      color: #666;
+    }
+  }
+
+  .recalculate-euribor-btn {
+    align-self: flex-start;
+    padding: 6px 12px;
+    border: 1px solid #0066cc;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #0066cc;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #f0f7ff;
+      border-color: #0052a3;
+      color: #0052a3;
+    }
+
+    &:active {
+      background: #e0e7ff;
+    }
+  }
+}

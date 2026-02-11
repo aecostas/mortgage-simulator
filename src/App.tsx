@@ -37,9 +37,10 @@ function App() {
   const handleFormSubmit = (
     mortgageId: string,
     config: Parameters<typeof calculateSchedule>[1],
+    euriborPaths?: Parameters<typeof calculateSchedule>[2],
   ) => {
     try {
-      calculateSchedule(mortgageId, config);
+      calculateSchedule(mortgageId, config, euriborPaths);
     } catch (error) {
       alert(
         error instanceof Error
@@ -147,8 +148,8 @@ function App() {
               <MortgageForm
                 key={currentMortgageId}
                 mortgageId={currentMortgageId}
-                onSubmit={(config) =>
-                  handleFormSubmit(currentMortgageId, config)
+                onSubmit={(config, euriborPaths) =>
+                  handleFormSubmit(currentMortgageId, config, euriborPaths)
                 }
                 onClone={() => handleCloneMortgage(currentMortgageId)}
               />
