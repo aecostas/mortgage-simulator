@@ -85,7 +85,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                   </div>
                   {currentValue === option.id && (
                     <div className="item-check">
-                      <CheckIcon size="sm" />
+                      <CheckIcon />
                     </div>
                   )}
                 </div>
@@ -113,11 +113,11 @@ const Dropdown: React.FC<DropdownProps> = ({
                   {option.subLabel && <span className="item-id">{option.subLabel}</span>}
                 </div>
                 {showSubmenu && option.children && option.children.length > 0 && (
-                  <AngleRightIcon size="sm" className="item-arrow" />
+                  <AngleRightIcon className="item-arrow" />
                 )}
                 {!showSubmenu && currentValue === option.id && (
                   <div className="item-check">
-                    <CheckIcon size="sm" />
+                    <CheckIcon />
                   </div>
                 )}
               </div>

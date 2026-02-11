@@ -1,5 +1,4 @@
 import { useMortgageStore } from '../../store/mortgageStore';
-import type { InterestType } from '../../utils/amortization';
 import { Confirmation, TrashButton } from '../../ui-components';
 import './ComparisonTable.scss';
 

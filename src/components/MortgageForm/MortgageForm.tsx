@@ -921,6 +921,7 @@ export function MortgageForm({
                                   unit="€"
                                   placeholder="0"
                                   className="insurance-amount"
+                                  showButtons={false}
                                 />
                                 <InsurancePeriodDropdown
                                   index={index}

@@ -14,7 +14,6 @@ function App() {
   const activeMortgageId = useMortgageStore((state) => state.activeMortgageId);
   const addMortgage = useMortgageStore((state) => state.addMortgage);
   const cloneMortgage = useMortgageStore((state) => state.cloneMortgage);
-  const removeMortgage = useMortgageStore((state) => state.removeMortgage);
   const setActiveMortgageId = useMortgageStore(
     (state) => state.setActiveMortgageId,
   );

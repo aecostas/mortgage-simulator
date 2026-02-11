@@ -9,4 +9,4 @@ export default defineConfig({
     globals: true,
     environment: 'node',
   },
-})
+} as import('vite').UserConfigExport & { test?: { globals?: boolean; environment?: string } })

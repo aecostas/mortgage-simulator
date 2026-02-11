@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import { useMortgageStore } from '../../store/mortgageStore';
@@ -30,7 +29,7 @@ export function ComparisonChart() {
 
   const balanceSeries = withSchedule.map((m, i) => ({
     name: m.name || `Hipoteca ${i + 1}`,
-    type: 'line',
+    type: 'line' as const,
     smooth: true,
     data: m.schedule.map((r) => Math.round(r.remainingBalance * 100) / 100),
     lineStyle: { width: 2 },
@@ -45,7 +44,7 @@ export function ComparisonChart() {
     });
     return {
       name: m.name || `Hipoteca ${i + 1}`,
-      type: 'line',
+      type: 'line' as const,
       smooth: true,
       data: cumulativePaid,
       lineStyle: { width: 2 },
@@ -57,7 +56,7 @@ export function ComparisonChart() {
     title: { text: 'Capital pendiente', left: 'center' },
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (value: number) => `${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
+      valueFormatter: (value: unknown, _dataIndex: number) => `${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
     },
     legend: { top: 28, type: 'scroll' },
     grid: { left: '3%', right: '4%', bottom: '3%', top: 60, containLabel: true },
@@ -84,7 +83,7 @@ export function ComparisonChart() {
     title: { text: 'Total pagado acumulado', left: 'center' },
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (value: number) => `${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
+      valueFormatter: (value: unknown, _dataIndex: number) => `${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
     },
     legend: { top: 28, type: 'scroll' },
     grid: { left: '3%', right: '4%', bottom: '3%', top: 60, containLabel: true },
@@ -128,7 +127,7 @@ export function ComparisonChart() {
       title: { text: `Total acumulado — ${m.name || 'Hipoteca'}`, left: 'center' },
       tooltip: {
         trigger: 'axis',
-        valueFormatter: (value: number) => `${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
+        valueFormatter: (value: unknown, _dataIndex: number) => `${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
       },
       legend: { top: 28, data: ['Capital amortizado', 'Interés', 'Seguros'] },
       grid: { left: '3%', right: '4%', bottom: '3%', top: 60, containLabel: true },
@@ -151,7 +150,7 @@ export function ComparisonChart() {
       series: [
         {
           name: 'Capital amortizado',
-          type: 'line',
+          type: 'line' as const,
           stack: 'payment',
           areaStyle: { opacity: 0.8 },
           data: principalData,
@@ -160,7 +159,7 @@ export function ComparisonChart() {
         },
         {
           name: 'Interés',
-          type: 'line',
+          type: 'line' as const,
           stack: 'payment',
           areaStyle: { opacity: 0.8 },
           data: interestData,
@@ -169,7 +168,7 @@ export function ComparisonChart() {
         },
         {
           name: 'Seguros',
-          type: 'line',
+          type: 'line' as const,
           stack: 'payment',
           areaStyle: { opacity: 0.8 },
           data: insuranceData,

@@ -1,9 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import {
-  calculateAmortization,
-  generateEuriborPath,
-} from "../utils/amortization";
+import { calculateAmortization } from "../utils/amortization";
 import type {
   InterestPeriod,
   MortgageConfig,
@@ -11,6 +8,7 @@ import type {
   EuriborPaths,
   PartialAmortization,
 } from "../utils/amortization";
+import { generateEuriborPath } from "../utils/euribor";
 
 export interface MortgageFormState {
   name: string;

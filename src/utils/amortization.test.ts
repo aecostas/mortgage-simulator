@@ -38,6 +38,7 @@ describe('calculateAmortization with partial amortizations', () => {
     const totalPaidIncludingPartial = totalCuota + totalPartialPaid;
 
     expect(schedule.length).toBe(120);
+    expect(totalInterestPaid).toBeGreaterThanOrEqual(0);
     expect(totalPrincipalPaid).toBeCloseTo(100_000, 2);
     expect(totalPaidIncludingPartial).toBeGreaterThanOrEqual(100_000);
     expect(schedule[schedule.length - 1].remainingBalance).toBeLessThanOrEqual(0.01);
