@@ -1,5 +1,6 @@
 import { useMortgageStore } from '../../store/mortgageStore';
 import type { InterestType } from '../../utils/amortization';
+import { Confirmation, TrashButton } from '../../ui-components';
 import './ComparisonTable.scss';
 
 interface ComparisonTableProps {
@@ -8,6 +9,7 @@ interface ComparisonTableProps {
 
 export function ComparisonTable({ onMortgageClick }: ComparisonTableProps = {}) {
   const mortgages = useMortgageStore((state) => state.mortgages);
+  const removeMortgage = useMortgageStore((state) => state.removeMortgage);
   const withSchedule = mortgages.filter((m) => m.schedule.length > 0);
 
   const formatCurrency = (value: number) => {
@@ -82,12 +84,25 @@ export function ComparisonTable({ onMortgageClick }: ComparisonTableProps = {}) 
       ? schedule.reduce((sum, row) => sum + (row.monthlyInsurance ?? 0), 0) / schedule.length
       : 0;
 
-    // Duración en años
-    const years = Math.floor(formState.months / 12);
-    const remainingMonths = formState.months % 12;
-    const durationLabel = remainingMonths > 0 
-      ? `${years}a ${remainingMonths}m`
-      : `${years}a`;
+    // Duración inicial en años
+    const initialYears = Math.floor(formState.months / 12);
+    const initialRemainingMonths = formState.months % 12;
+    const initialDurationLabel = initialRemainingMonths > 0 
+      ? `${initialYears}a ${initialRemainingMonths}m`
+      : `${initialYears}a`;
+
+    // Duración real (basada en el schedule)
+    const actualMonths = schedule.length;
+    const actualYears = Math.floor(actualMonths / 12);
+    const actualRemainingMonths = actualMonths % 12;
+    const actualDurationLabel = actualRemainingMonths > 0 
+      ? `${actualYears}a ${actualRemainingMonths}m`
+      : `${actualYears}a`;
+
+    // Mostrar ambas duraciones si la real es menor que la inicial
+    const durationLabel = actualMonths < formState.months
+      ? `${initialDurationLabel} (real: ${actualDurationLabel})`
+      : initialDurationLabel;
 
     return {
       name: formState.name || mortgage.name,
@@ -123,6 +138,7 @@ export function ComparisonTable({ onMortgageClick }: ComparisonTableProps = {}) 
               <th>Total Intereses</th>
               <th>Total Pagado</th>
               <th>Seguros Mensuales</th>
+              <th className="comparison-table__cell-actions"></th>
             </tr>
           </thead>
           <tbody>
@@ -144,6 +160,21 @@ export function ComparisonTable({ onMortgageClick }: ComparisonTableProps = {}) 
                 <td className="comparison-table__cell-number">{formatCurrency(summary.totalInterest)}</td>
                 <td className="comparison-table__cell-number">{formatCurrency(summary.totalPaid)}</td>
                 <td className="comparison-table__cell-number">{formatCurrency(summary.avgInsurance)}</td>
+                <td className="comparison-table__cell-actions">
+                  {mortgages.length > 1 && (
+                    <Confirmation
+                      title="Eliminar hipoteca"
+                      message={`¿Eliminar la hipoteca "${summary.name}"? Esta acción no se puede deshacer.`}
+                      confirmLabel="Eliminar"
+                      cancelLabel="Cancelar"
+                    >
+                      <TrashButton
+                        onClick={() => removeMortgage(withSchedule[index].id)}
+                        aria-label={`Eliminar ${summary.name}`}
+                      />
+                    </Confirmation>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

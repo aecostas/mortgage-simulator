@@ -6,9 +6,11 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  /** Optional class for the modal content wrapper (e.g. for a narrower confirmation dialog) */
+  contentClassName?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, contentClassName }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -38,7 +40,10 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={['modal-content', contentClassName].filter(Boolean).join(' ')}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
           <div className="modal-header">
             <h2 className="modal-title">{title}</h2>

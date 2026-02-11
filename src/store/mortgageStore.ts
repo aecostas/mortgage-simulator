@@ -9,6 +9,7 @@ import type {
   MortgageConfig,
   AmortizationRow,
   EuriborPaths,
+  PartialAmortization,
 } from "../utils/amortization";
 
 export interface MortgageFormState {
@@ -16,6 +17,7 @@ export interface MortgageFormState {
   principal: number;
   months: number;
   periods: InterestPeriod[];
+  partialAmortizations?: PartialAmortization[];
 }
 
 export interface MortgageTab {
@@ -44,6 +46,7 @@ const defaultFormState: MortgageFormState = {
       extraItems: [],
     },
   ],
+  partialAmortizations: [],
 };
 
 interface MortgageStore {
@@ -132,6 +135,7 @@ export const useMortgageStore = create<MortgageStore>()(
           ...p,
           extraItems: p.extraItems?.map((e) => ({ ...e })) ?? [],
         })),
+        partialAmortizations: source.formState.partialAmortizations?.map((pa) => ({ ...pa })) ?? [],
       },
       schedule: [],
       euriborPaths: undefined,
@@ -147,6 +151,7 @@ export const useMortgageStore = create<MortgageStore>()(
       periods: [...newMortgage.formState.periods].sort(
         (a, b) => a.startMonth - b.startMonth,
       ),
+      partialAmortizations: newMortgage.formState.partialAmortizations ?? [],
     });
     return newId;
   },
@@ -192,6 +197,7 @@ export const useMortgageStore = create<MortgageStore>()(
       periods: [...mortgage.formState.periods].sort(
         (a, b) => a.startMonth - b.startMonth,
       ),
+      partialAmortizations: mortgage.formState.partialAmortizations ?? [],
     };
     try {
       const sortedPeriods = [...cfg.periods].sort(

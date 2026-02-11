@@ -2,6 +2,19 @@ export type InterestType = 'fixed' | 'variable';
 
 export type InsurancePeriodType = 'annual' | 'monthly';
 
+/** Tipo de amortización parcial: reduce plazo (misma cuota) o reduce cuota (mismo plazo). */
+export type PartialAmortizationType = 'time' | 'capital';
+
+/** Amortización parcial periódica: cada X meses se amortiza un importe; reduce tiempo o capital. */
+export interface PartialAmortization {
+  /** Cada cuántos meses se aplica (ej. 12 = anual) */
+  periodMonths: number;
+  /** Importe a amortizar en cada aplicación (€) */
+  amount: number;
+  /** 'time' = reducir plazo (misma cuota); 'capital' = reducir cuota (mismo plazo) */
+  type: PartialAmortizationType;
+}
+
 /** Ítem genérico que se suma al pago (ej. comunidad, IBI). */
 export interface ExtraItem {
   name: string;
@@ -33,6 +46,8 @@ export interface MortgageConfig {
   principal: number; // Cantidad inicial
   months: number; // Duración total en meses
   periods: InterestPeriod[]; // Periodos con diferentes intereses
+  /** Amortizaciones parciales periódicas (opcional) */
+  partialAmortizations?: PartialAmortization[];
 }
 
 /** Paths de Euribor mensual (%) por índice de periodo (0-based). Solo para periodos variables. */
@@ -96,6 +111,8 @@ export interface AmortizationRow {
   monthlyInsurance?: number;
   /** Importe mensual de ítems adicionales genéricos en este mes */
   monthlyExtraItems?: number;
+  /** Amortización parcial aplicada este mes (€) */
+  partialAmortization?: number;
 }
 
 /** Calcula el importe mensual de seguros para un periodo (vida + hogar). */
@@ -130,119 +147,190 @@ function getMonthlyRateVariable(
   return (euriborPercent + differentialPercent) / 100 / 12;
 }
 
+/** Devuelve cuota mensual para amortizar balance en n meses a tipo mensual r. */
+function monthlyPaymentFor(balance: number, monthlyRate: number, n: number): number {
+  if (n <= 0) return 0;
+  if (n === 1) return balance * (1 + monthlyRate);
+  return (
+    (balance * (monthlyRate * Math.pow(1 + monthlyRate, n))) /
+    (Math.pow(1 + monthlyRate, n) - 1)
+  );
+}
+
+/** Número de meses para amortizar balance con cuota fija y tipo r (aprox.). */
+function monthsToPayOff(balance: number, monthlyPayment: number, monthlyRate: number): number {
+  if (balance <= 0 || monthlyPayment <= balance * monthlyRate) return 0;
+  const n =
+    Math.log(monthlyPayment / (monthlyPayment - balance * monthlyRate)) /
+    Math.log(1 + monthlyRate);
+  return Math.max(1, Math.ceil(n));
+}
+
+function getPeriodForMonth(
+  month: number,
+  sortedPeriods: InterestPeriod[]
+): { period: InterestPeriod; periodIndex: number; monthIndexInPeriod: number } | null {
+  for (let i = 0; i < sortedPeriods.length; i++) {
+    const p = sortedPeriods[i];
+    if (month >= p.startMonth && month <= p.endMonth) {
+      return {
+        period: p,
+        periodIndex: i,
+        monthIndexInPeriod: month - p.startMonth,
+      };
+    }
+  }
+  return null;
+}
+
+/** Comprueba si en el mes dado aplica una amortización parcial y devuelve el importe a aplicar (acotado al balance). */
+function getPartialAmortizationAmount(
+  month: number,
+  remainingBalance: number,
+  partials: PartialAmortization[]
+): number {
+  let total = 0;
+  for (const pa of partials) {
+    if (pa.periodMonths <= 0 || pa.amount <= 0) continue;
+    if (month % pa.periodMonths !== 0) continue;
+    const extra = Math.min(pa.amount, remainingBalance - total);
+    if (extra > 0) total += extra;
+  }
+  return total;
+}
+
+/** Indica si alguna amortización parcial aplicada en este mes es de tipo 'time' o 'capital'. */
+function getPartialAmortizationTypes(
+  month: number,
+  partials: PartialAmortization[]
+): { hasCapital: boolean; hasTime: boolean } {
+  let hasCapital = false;
+  let hasTime = false;
+  for (const pa of partials) {
+    if (pa.periodMonths <= 0 || pa.amount <= 0) continue;
+    if (month % pa.periodMonths !== 0) continue;
+    if (pa.type === 'capital') hasCapital = true;
+    else hasTime = true;
+  }
+  return { hasCapital, hasTime };
+}
+
 export function calculateAmortization(
   config: MortgageConfig,
   euriborPaths?: EuriborPaths
 ): AmortizationRow[] {
   const { principal, months, periods } = config;
+  const partials = config.partialAmortizations ?? [];
 
   if (periods.length === 0) {
     throw new Error('Debe haber al menos un periodo de interés');
   }
 
   const sortedPeriods = [...periods].sort((a, b) => a.startMonth - b.startMonth);
+  // Validar paths de Euribor para periodos variables
+  for (let i = 0; i < sortedPeriods.length; i++) {
+    const p = sortedPeriods[i];
+    if ((p.interestType ?? 'fixed') === 'variable') {
+      const end = Math.min(p.endMonth, months);
+      const periodMonths = end - p.startMonth + 1;
+      const path = euriborPaths?.[i];
+      if (!path || path.length !== periodMonths) {
+        throw new Error(
+          `Periodo variable ${i + 1} requiere euriborPaths con ${periodMonths} valores`
+        );
+      }
+    }
+  }
+
   const schedule: AmortizationRow[] = [];
   let remainingBalance = principal;
+  let effectiveEndMonth = months;
+  let currentPayment: number | null = null;
+  let currentPaymentValidUntilMonth = 0;
 
-  for (let periodIndex = 0; periodIndex < sortedPeriods.length; periodIndex++) {
-    const period = sortedPeriods[periodIndex];
-    const periodStartMonth = period.startMonth;
-    const periodEndMonth = Math.min(period.endMonth, months);
-    const periodMonths = periodEndMonth - periodStartMonth + 1;
-
-    if (periodMonths <= 0) continue;
-
-    const totalRemainingMonths = months - periodStartMonth + 1;
+  let month = 1;
+  while (month <= effectiveEndMonth && remainingBalance > 0.01) {
+    const info = getPeriodForMonth(month, sortedPeriods);
+    if (!info) break;
+    const { period, periodIndex, monthIndexInPeriod } = info;
     const isVariable = (period.interestType ?? 'fixed') === 'variable';
     const path = isVariable ? euriborPaths?.[periodIndex] : undefined;
+    const monthlyRate = isVariable
+      ? getMonthlyRateVariable(
+          path![monthIndexInPeriod],
+          period.euriborDifferential ?? 0
+        )
+      : getMonthlyRateFixed(period);
 
-    if (isVariable && (!path || path.length !== periodMonths)) {
-      throw new Error(
-        `Periodo variable ${periodIndex + 1} requiere euriborPaths con ${periodMonths} valores`
-      );
-    }
-
-    if (!isVariable) {
-      // Periodo fijo: lógica actual
-      const monthlyRate = getMonthlyRateFixed(period);
-      let monthlyPayment: number;
-      if (totalRemainingMonths === 1) {
-        monthlyPayment = remainingBalance * (1 + monthlyRate);
+    const remainingMonths = effectiveEndMonth - month + 1;
+    if (
+      currentPayment === null ||
+      month > currentPaymentValidUntilMonth ||
+      remainingMonths <= 0
+    ) {
+      if (remainingMonths <= 0) break;
+      currentPayment = monthlyPaymentFor(remainingBalance, monthlyRate, remainingMonths);
+      if (isVariable) {
+        const nextRevision = month + Math.min(12, period.endMonth - month + 1);
+        currentPaymentValidUntilMonth = nextRevision - 1;
       } else {
-        monthlyPayment =
-          (remainingBalance *
-            (monthlyRate * Math.pow(1 + monthlyRate, totalRemainingMonths))) /
-          (Math.pow(1 + monthlyRate, totalRemainingMonths) - 1);
-      }
-      for (let m = 0; m < periodMonths; m++) {
-        const month = periodStartMonth + m;
-        const interestPayment = remainingBalance * monthlyRate;
-        const principalPayment = monthlyPayment - interestPayment;
-        remainingBalance -= principalPayment;
-        schedule.push({
-          month,
-          payment: monthlyPayment,
-          principalPayment,
-          interestPayment,
-          remainingBalance: Math.max(0, remainingBalance),
-          period: periodIndex + 1,
-          monthlyInsurance: getMonthlyInsurance(period),
-          monthlyExtraItems: getMonthlyExtraItems(period),
-        });
-      }
-    } else {
-      // Periodo variable: revisión anual (cada 12 meses se recalcula la cuota)
-      const differential = period.euriborDifferential ?? 0;
-      let m = 0;
-      while (m < periodMonths) {
-        const blockStart = m;
-        const blockMonths = Math.min(12, periodMonths - m);
-        const euriborAtRevision = path![blockStart];
-        const annualRate = euriborAtRevision + differential;
-        const monthlyRate = annualRate / 100 / 12;
-        const remainingFromHere = totalRemainingMonths - m;
-
-        let monthlyPayment: number;
-        if (remainingFromHere === 1) {
-          monthlyPayment = remainingBalance * (1 + monthlyRate);
-        } else {
-          monthlyPayment =
-            (remainingBalance *
-              (monthlyRate * Math.pow(1 + monthlyRate, remainingFromHere))) /
-            (Math.pow(1 + monthlyRate, remainingFromHere) - 1);
-        }
-
-        for (let k = 0; k < blockMonths; k++) {
-          const monthIndex = m + k;
-          const month = periodStartMonth + monthIndex;
-          const euriborK = path![monthIndex];
-          const rateK = getMonthlyRateVariable(euriborK, differential);
-          const interestPayment = remainingBalance * rateK;
-          const principalPayment = monthlyPayment - interestPayment;
-          remainingBalance -= principalPayment;
-          schedule.push({
-            month,
-            payment: monthlyPayment,
-            principalPayment,
-            interestPayment,
-            remainingBalance: Math.max(0, remainingBalance),
-            period: periodIndex + 1,
-            monthlyInsurance: getMonthlyInsurance(period),
-            monthlyExtraItems: getMonthlyExtraItems(period),
-          });
-        }
-        m += blockMonths;
+        currentPaymentValidUntilMonth = period.endMonth;
       }
     }
 
-    const isLastPeriod = periodIndex === sortedPeriods.length - 1;
-    if (isLastPeriod && schedule.length > 0) {
-      const lastRow = schedule[schedule.length - 1];
-      if (lastRow.remainingBalance > 0.01) {
-        lastRow.payment += lastRow.remainingBalance;
-        lastRow.principalPayment += lastRow.remainingBalance;
-        lastRow.remainingBalance = 0;
+    let interestPayment = remainingBalance * monthlyRate;
+    let principalPayment = currentPayment - interestPayment;
+    // No amortizar más del balance pendiente (evita sobrepago en último mes)
+    const cappedPrincipal = principalPayment > remainingBalance ? remainingBalance : principalPayment;
+    principalPayment = cappedPrincipal;
+    remainingBalance -= principalPayment;
+
+    const partialAmount = getPartialAmortizationAmount(month, remainingBalance, partials);
+    if (partialAmount > 0) {
+      remainingBalance -= partialAmount;
+      principalPayment += partialAmount;
+      const { hasCapital, hasTime } = getPartialAmortizationTypes(month, partials);
+      if (hasCapital && remainingBalance > 0.01) {
+        const rem = effectiveEndMonth - month;
+        if (rem > 0) {
+          currentPayment = monthlyPaymentFor(remainingBalance, monthlyRate, rem);
+          currentPaymentValidUntilMonth = month;
+        }
       }
+      if (hasTime && remainingBalance > 0.01 && currentPayment > remainingBalance * monthlyRate) {
+        const n = monthsToPayOff(remainingBalance, currentPayment, monthlyRate);
+        effectiveEndMonth = Math.min(effectiveEndMonth, month + n);
+      }
+    }
+
+    // Pago mostrado: cuota estándar; si hubo cap usamos el importe real (interés + principal)
+    const paymentToShow =
+      cappedPrincipal < currentPayment - interestPayment
+        ? interestPayment + principalPayment
+        : currentPayment;
+    schedule.push({
+      month,
+      payment: paymentToShow,
+      principalPayment,
+      interestPayment,
+      remainingBalance: Math.max(0, remainingBalance),
+      period: periodIndex + 1,
+      monthlyInsurance: getMonthlyInsurance(period),
+      monthlyExtraItems: getMonthlyExtraItems(period),
+      partialAmortization: partialAmount > 0 ? partialAmount : undefined,
+    });
+
+    month++;
+  }
+
+  // Asegurar que todo el capital quede reflejado como pagado (evita que capital pagado < principal
+  // cuando el plazo se acorta por amort. parcial "time" y hay redondeos o cambio de cuota)
+  if (schedule.length > 0) {
+    const lastRow = schedule[schedule.length - 1];
+    if (lastRow.remainingBalance > 0) {
+      lastRow.payment += lastRow.remainingBalance;
+      lastRow.principalPayment += lastRow.remainingBalance;
+      lastRow.remainingBalance = 0;
     }
   }
 

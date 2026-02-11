@@ -23,6 +23,11 @@
   flex-direction: column;
   overflow: hidden;
 
+  &--compact {
+    width: auto;
+    max-width: 400px;
+  }
+
   // Para la tabla de amortización, usar un ancho más grande
   .amortization-table-card {
     height: 100%;

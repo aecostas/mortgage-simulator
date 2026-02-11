@@ -5,6 +5,8 @@ import type {
   InterestType,
   InsurancePeriodType,
   ExtraItem,
+  PartialAmortization,
+  PartialAmortizationType,
 } from "../../utils/amortization";
 import { useMortgageStore } from "../../store/mortgageStore";
 import {
@@ -37,7 +39,7 @@ function InterestTypeDropdown({
   const updatePosition = () => {
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();
-      setPosition({ top: rect.bottom, left: rect.left });
+      setPosition({ top: rect.bottom, left: rect.left, width: rect.width });
     }
   };
 
@@ -73,10 +75,68 @@ function InterestTypeDropdown({
   );
 }
 
+// Helper component for Partial Amortization Type dropdown
+function PartialAmortizationTypeDropdown({
+  index: _index,
+  value,
+  onChange,
+}: {
+  index: number;
+  value: PartialAmortizationType;
+  onChange: (value: PartialAmortizationType) => void;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const ref = useRef<HTMLDivElement>(null);
+
+  const options: DropdownOption[] = [
+    { id: "time", label: "En tiempo (reducir plazo)" },
+    { id: "capital", label: "En capital (reducir cuota)" },
+  ];
+
+  const updatePosition = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPosition({ top: rect.bottom, left: rect.left, width: rect.width });
+    }
+  };
+
+  return (
+    <div className="form-group">
+      <label>Tipo</label>
+      <div
+        ref={ref}
+        className="form-select-trigger"
+        onClick={() => {
+          updatePosition();
+          setShowDropdown(true);
+        }}
+      >
+        {value === "time" ? "En tiempo (reducir plazo)" : "En capital (reducir cuota)"}
+      </div>
+      {showDropdown && (
+        <Dropdown
+          options={options}
+          currentValue={value}
+          top={position.top}
+          left={position.left}
+          width={position.width}
+          onSelect={(id) => {
+            onChange(id as PartialAmortizationType);
+            setShowDropdown(false);
+          }}
+          onCancel={() => setShowDropdown(false)}
+          mainLabel="Tipo de amortización"
+        />
+      )}
+    </div>
+  );
+}
+
 // Helper component for Insurance Period dropdown
 function InsurancePeriodDropdown({
-  index,
-  itemIndex,
+  index: _index,
+  itemIndex: _itemIndex,
   value,
   onChange,
   label,
@@ -168,9 +228,10 @@ export function MortgageForm({
         extraItems: [],
       },
     ],
+    partialAmortizations: [],
   };
 
-  const { name, principal, months, periods } = formState;
+  const { name, principal, months, periods, partialAmortizations = [] } = formState;
 
   const handleNameChange = (newName: string) => {
     updateFormState(mortgageId, { name: newName });
@@ -206,6 +267,9 @@ export function MortgageForm({
       principal,
       months,
       periods: sortedPeriods,
+      partialAmortizations: partialAmortizations.filter(
+        (pa) => pa.periodMonths > 0 && pa.amount > 0
+      ),
     });
   };
 
@@ -227,6 +291,7 @@ export function MortgageForm({
           extraItems: [],
         },
       ],
+      partialAmortizations: [],
     });
   };
 
@@ -317,6 +382,32 @@ export function MortgageForm({
     }
     newPeriods[index] = next;
     updateFormState(mortgageId, { periods: newPeriods });
+  };
+
+  const addPartialAmortization = () => {
+    updateFormState(mortgageId, {
+      partialAmortizations: [
+        ...partialAmortizations,
+        { periodMonths: 12, amount: 0, type: "capital" },
+      ],
+    });
+  };
+
+  const removePartialAmortization = (index: number) => {
+    updateFormState(mortgageId, {
+      partialAmortizations: partialAmortizations.filter((_, i) => i !== index),
+    });
+  };
+
+  const updatePartialAmortization = (
+    index: number,
+    field: keyof PartialAmortization,
+    value: number | PartialAmortizationType,
+  ) => {
+    const updated = partialAmortizations.map((pa, i) =>
+      i === index ? { ...pa, [field]: value } : pa,
+    );
+    updateFormState(mortgageId, { partialAmortizations: updated });
   };
 
   const totalYears = Math.ceil(months / 12);
@@ -693,6 +784,79 @@ export function MortgageForm({
               onClick={addPeriod}
             >
               ➕ Añadir Periodo
+            </button>
+          </fieldset>
+
+          <hr className="form-divider" />
+
+          <fieldset className="form-section">
+            <legend>Amortizaciones parciales</legend>
+            <p className="form-helper-text form-helper-block">
+              Opcional: cada X meses puede amortizar un importe extra. &quot;En tiempo&quot; reduce el plazo
+              manteniendo la cuota; &quot;En capital&quot; reduce la cuota manteniendo el plazo.
+            </p>
+            <div className="periods-list">
+              {partialAmortizations.map((pa, index) => (
+                <div key={index} className="period-card">
+                  <div className="period-header">
+                    <h4>Amortización parcial {index + 1}</h4>
+                    <button
+                      type="button"
+                      className="delete-button"
+                      onClick={() => removePartialAmortization(index)}
+                      aria-label="Eliminar amortización parcial"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                  <div className="period-fields">
+                    <NumberInput
+                      id={`partial-period-${index}`}
+                      label="Cada cuántos meses"
+                      value={pa.periodMonths}
+                      onChange={(value) =>
+                        updatePartialAmortization(
+                          index,
+                          "periodMonths",
+                          Math.max(1, value),
+                        )
+                      }
+                      min={1}
+                      step={1}
+                      unit="meses"
+                    />
+                    <NumberInput
+                      id={`partial-amount-${index}`}
+                      label="Importe a amortizar"
+                      value={pa.amount}
+                      onChange={(value) =>
+                        updatePartialAmortization(
+                          index,
+                          "amount",
+                          Math.max(0, value),
+                        )
+                      }
+                      min={0}
+                      step={100}
+                      unit="€"
+                    />
+                    <PartialAmortizationTypeDropdown
+                      index={index}
+                      value={pa.type}
+                      onChange={(value) =>
+                        updatePartialAmortization(index, "type", value)
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="add-period-button"
+              onClick={addPartialAmortization}
+            >
+              ➕ Añadir amortización parcial
             </button>
           </fieldset>
 
