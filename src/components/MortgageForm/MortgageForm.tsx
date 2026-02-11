@@ -112,7 +112,9 @@ function PartialAmortizationTypeDropdown({
           setShowDropdown(true);
         }}
       >
-        {value === "time" ? "En tiempo (reducir plazo)" : "En capital (reducir cuota)"}
+        {value === "time"
+          ? "En tiempo (reducir plazo)"
+          : "En capital (reducir cuota)"}
       </div>
       {showDropdown && (
         <Dropdown
@@ -231,7 +233,13 @@ export function MortgageForm({
     partialAmortizations: [],
   };
 
-  const { name, principal, months, periods, partialAmortizations = [] } = formState;
+  const {
+    name,
+    principal,
+    months,
+    periods,
+    partialAmortizations = [],
+  } = formState;
 
   const handleNameChange = (newName: string) => {
     updateFormState(mortgageId, { name: newName });
@@ -268,7 +276,7 @@ export function MortgageForm({
       months,
       periods: sortedPeriods,
       partialAmortizations: partialAmortizations.filter(
-        (pa) => pa.periodMonths > 0 && pa.amount > 0
+        (pa) => pa.periodMonths > 0 && pa.amount > 0,
       ),
     });
   };
@@ -451,7 +459,7 @@ export function MortgageForm({
                   updateFormState(mortgageId, { months: Math.max(1, value) })
                 }
                 min={1}
-                step={12}
+                step={1}
                 unit="meses"
                 required
               />
@@ -554,7 +562,7 @@ export function MortgageForm({
                             )
                           }
                           min={0}
-                          step={0.1}
+                          step={0.01}
                           unit="%"
                           required
                         />
@@ -574,6 +582,7 @@ export function MortgageForm({
                             min={0}
                             step={0.01}
                             unit="%"
+                            showButtons={false}
                           />
                           <div className="form-group period-two-cols">
                             <NumberInput
@@ -586,6 +595,7 @@ export function MortgageForm({
                               min={-5}
                               step={0.1}
                               unit="%"
+                              showButtons={false}
                             />
                             <NumberInput
                               id={`euribor-max-${index}`}
@@ -597,6 +607,7 @@ export function MortgageForm({
                               min={-5}
                               step={0.1}
                               unit="%"
+                              showButtons={false}
                             />
                           </div>
                           <NumberInput
@@ -631,7 +642,7 @@ export function MortgageForm({
                               )
                             }
                             min={0}
-                            step={10}
+                            step={1}
                             unit="€"
                             placeholder="0"
                             className="insurance-amount"
@@ -664,7 +675,7 @@ export function MortgageForm({
                               )
                             }
                             min={0}
-                            step={10}
+                            step={1}
                             unit="€"
                             placeholder="0"
                             className="insurance-amount"
@@ -747,7 +758,7 @@ export function MortgageForm({
                                     )
                                   }
                                   min={0}
-                                  step={10}
+                                  step={1}
                                   unit="€"
                                   placeholder="0"
                                   className="insurance-amount"
@@ -792,8 +803,9 @@ export function MortgageForm({
           <fieldset className="form-section">
             <legend>Amortizaciones parciales</legend>
             <p className="form-helper-text form-helper-block">
-              Opcional: cada X meses puede amortizar un importe extra. &quot;En tiempo&quot; reduce el plazo
-              manteniendo la cuota; &quot;En capital&quot; reduce la cuota manteniendo el plazo.
+              Opcional: cada X meses puede amortizar un importe extra. &quot;En
+              tiempo&quot; reduce el plazo manteniendo la cuota; &quot;En
+              capital&quot; reduce la cuota manteniendo el plazo.
             </p>
             <div className="periods-list">
               {partialAmortizations.map((pa, index) => (
