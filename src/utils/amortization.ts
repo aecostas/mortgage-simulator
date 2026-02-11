@@ -53,53 +53,6 @@ export interface MortgageConfig {
 /** Paths de Euribor mensual (%) por índice de periodo (0-based). Solo para periodos variables. */
 export type EuriborPaths = Record<number, number[]>;
 
-/**
- * Genera un path aleatorio de Euribor mensual (%) para un periodo variable.
- * @param periodMonths Número de meses del periodo
- * @param euriborMin Mínimo Euribor (%)
- * @param euriborMax Máximo Euribor (%)
- * @param volatility 0 estable, 5 muy dinámico
- * @param seed Opcional: semilla para reproducibilidad
- */
-export function generateEuriborPath(
-  periodMonths: number,
-  euriborMin: number,
-  euriborMax: number,
-  volatility: number,
-  seed?: number
-): number[] {
-  const min = Math.min(euriborMin, euriborMax);
-  const max = Math.max(euriborMin, euriborMax);
-  const range = max - min;
-  // Factor reducido para que "baja" volatilidad sea suave; escala cuadrática suaviza más los valores bajos
-  const volNorm = volatility / 5;
-  const stepScale = volNorm * volNorm * range * 0.15;
-
-  let rng: () => number;
-  if (seed != null) {
-    let s = seed;
-    rng = () => {
-      s = (s * 1103515245 + 12345) & 0x7fff_ffff;
-      return s / 0x7fff_ffff;
-    };
-  } else {
-    rng = () => Math.random();
-  }
-
-  const path: number[] = [];
-  let current = min + range * rng();
-  for (let i = 0; i < periodMonths; i++) {
-    if (volatility === 0) {
-      path.push(current);
-      continue;
-    }
-    const step = (2 * rng() - 1) * stepScale;
-    current = Math.max(min, Math.min(max, current + step));
-    path.push(current);
-  }
-  return path;
-}
-
 export interface AmortizationRow {
   month: number;
   payment: number;

@@ -94,7 +94,9 @@ export function AmortizationTable({
           )}
           <div className="amortization-summary-item amortization-summary-total">
             <span className="amortization-summary-label">
-              Total pagado (cuota + amort. parciales + seguros + otros)
+              {hasPartialAmort
+                ? 'Total pagado (cuota + amort. parciales + seguros + otros)'
+                : 'Total pagado (cuota + seguros + otros)'}
             </span>
             <span className="amortization-summary-value">{formatCurrency(totalPaid)}</span>
           </div>

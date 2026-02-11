@@ -1,11 +1,5 @@
 import './EuriborChart.scss';
-
-export interface EuriborSeries {
-  /** Mes global de inicio del periodo (1-based) */
-  startMonth: number;
-  /** Valores de Euribor (%) por mes del periodo */
-  values: number[];
-}
+import type { EuriborSeries } from '../../utils/euribor';
 
 interface EuriborChartProps {
   /** Una serie por periodo variable (ordenadas por startMonth) */

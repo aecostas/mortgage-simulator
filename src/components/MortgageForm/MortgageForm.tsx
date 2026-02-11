@@ -10,7 +10,12 @@ import type {
   PartialAmortizationType,
   EuriborPaths,
 } from "../../utils/amortization";
-import { generateEuriborPath } from "../../utils/amortization";
+import {
+  generateEuriborPreviewSeries,
+  recalculateEuriborForPeriod,
+  convertEuriborSeriesToPaths,
+  type EuriborSeries,
+} from "../../utils/euribor";
 import { useMortgageStore } from "../../store/mortgageStore";
 import {
   Dropdown,
@@ -18,8 +23,11 @@ import {
   NumberInput,
   InputWithCloneButton,
 } from "../../ui-components";
-import { EuriborChart, type EuriborSeries } from "../EuriborChart/EuriborChart";
+import { EuriborChart } from "../EuriborChart/EuriborChart";
 import "./MortgageForm.scss";
+
+// Temporal: poner a true para reactivar las amortizaciones parciales
+const PARTIAL_AMORTIZATIONS_ENABLED = false;
 
 // Helper component for Interest Type dropdown
 function InterestTypeDropdown({
@@ -304,7 +312,7 @@ export function MortgageForm({
 
     // Usar los valores guardados si existen, o convertir euriborPreviewSeries a EuriborPaths
     const savedPaths = mortgage?.euriborPaths;
-    const euriborPaths: EuriborPaths = {};
+    let euriborPaths: EuriborPaths = {};
     
     if (savedPaths && Object.keys(savedPaths).length > 0) {
       // Usar los valores guardados
@@ -319,18 +327,8 @@ export function MortgageForm({
         }
       }
     } else {
-      // Convertir euriborPreviewSeries a EuriborPaths (índice del periodo -> valores)
-      for (let i = 0; i < sortedPeriods.length; i++) {
-        const period = sortedPeriods[i];
-        if (period.interestType === "variable") {
-          const series = euriborPreviewSeries.find(
-            (s) => s.startMonth === period.startMonth,
-          );
-          if (series) {
-            euriborPaths[i] = series.values;
-          }
-        }
-      }
+      // Convertir euriborPreviewSeries a EuriborPaths
+      euriborPaths = convertEuriborSeriesToPaths(euriborPreviewSeries, sortedPeriods);
     }
 
     onSubmit(
@@ -339,9 +337,11 @@ export function MortgageForm({
         principal,
         months,
         periods: sortedPeriods,
-        partialAmortizations: partialAmortizations.filter(
-          (pa) => pa.periodMonths > 0 && pa.amount > 0,
-        ),
+        partialAmortizations: PARTIAL_AMORTIZATIONS_ENABLED
+          ? partialAmortizations.filter(
+              (pa) => pa.periodMonths > 0 && pa.amount > 0,
+            )
+          : [],
       },
       Object.keys(euriborPaths).length > 0 ? euriborPaths : undefined,
     );
@@ -520,40 +520,10 @@ export function MortgageForm({
   // Generar datos del euribor para mostrar en el formulario (preview)
   // Usa los valores guardados si existen, o genera nuevos con semilla fija
   const euriborPreviewSeries: EuriborSeries[] = useMemo(() => {
-    const series: EuriborSeries[] = [];
-    const savedPaths = mortgage?.euriborPaths;
-    
-    for (let i = 0; i < sortedPeriods.length; i++) {
-      const period = sortedPeriods[i];
-      if (period.interestType === "variable") {
-        const periodMonths = period.endMonth - period.startMonth + 1;
-        let values: number[];
-        
-        // Si hay valores guardados para este periodo, usarlos
-        if (savedPaths && savedPaths[i] && savedPaths[i].length === periodMonths) {
-          values = savedPaths[i];
-        } else {
-          // Si no, generar nuevos con semilla fija para consistencia
-          const euriborMin = period.euriborMin ?? 2;
-          const euriborMax = period.euriborMax ?? 5;
-          const volatility = period.euriborVolatility ?? 2;
-          const seed = period.startMonth * 1000 + period.endMonth;
-          values = generateEuriborPath(
-            periodMonths,
-            euriborMin,
-            euriborMax,
-            volatility,
-            seed,
-          );
-        }
-        
-        series.push({
-          startMonth: period.startMonth,
-          values,
-        });
-      }
-    }
-    return series;
+    return generateEuriborPreviewSeries({
+      sortedPeriods,
+      savedPaths: mortgage?.euriborPaths,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     JSON.stringify(
@@ -575,18 +545,8 @@ export function MortgageForm({
     const period = sortedPeriods[periodIndex];
     if (period.interestType !== "variable") return;
     
-    const periodMonths = period.endMonth - period.startMonth + 1;
-    const euriborMin = period.euriborMin ?? 2;
-    const euriborMax = period.euriborMax ?? 5;
-    const volatility = period.euriborVolatility ?? 2;
-    
-    // Generar nuevos valores sin semilla (aleatorios)
-    const newValues = generateEuriborPath(
-      periodMonths,
-      euriborMin,
-      euriborMax,
-      volatility,
-    );
+    // Generar nuevos valores usando la función de utilidades
+    const newValues = recalculateEuriborForPeriod({ period });
     
     // Actualizar los valores guardados
     const currentPaths = mortgage?.euriborPaths ?? {};
@@ -997,79 +957,83 @@ export function MortgageForm({
             </button>
           </fieldset>
 
-          <hr className="form-divider" />
+          {PARTIAL_AMORTIZATIONS_ENABLED && (
+            <>
+              <hr className="form-divider" />
 
-          <fieldset className="form-section">
-            <legend>Amortizaciones parciales</legend>
-            <p className="form-helper-text form-helper-block">
-              Opcional: cada X meses puede amortizar un importe extra. &quot;En
-              tiempo&quot; reduce el plazo manteniendo la cuota; &quot;En
-              capital&quot; reduce la cuota manteniendo el plazo.
-            </p>
-            <div className="periods-list">
-              {partialAmortizations.map((pa, index) => (
-                <div key={index} className="period-card">
-                  <div className="period-header">
-                    <h4>Amortización parcial {index + 1}</h4>
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() => removePartialAmortization(index)}
-                      aria-label="Eliminar amortización parcial"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                  <div className="period-fields">
-                    <NumberInput
-                      id={`partial-period-${index}`}
-                      label="Cada cuántos meses"
-                      value={pa.periodMonths}
-                      onChange={(value) =>
-                        updatePartialAmortization(
-                          index,
-                          "periodMonths",
-                          Math.max(1, value),
-                        )
-                      }
-                      min={1}
-                      step={1}
-                      unit="meses"
-                    />
-                    <NumberInput
-                      id={`partial-amount-${index}`}
-                      label="Importe a amortizar"
-                      value={pa.amount}
-                      onChange={(value) =>
-                        updatePartialAmortization(
-                          index,
-                          "amount",
-                          Math.max(0, value),
-                        )
-                      }
-                      min={0}
-                      step={100}
-                      unit="€"
-                    />
-                    <PartialAmortizationTypeDropdown
-                      index={index}
-                      value={pa.type}
-                      onChange={(value) =>
-                        updatePartialAmortization(index, "type", value)
-                      }
-                    />
-                  </div>
+              <fieldset className="form-section">
+                <legend>Amortizaciones parciales</legend>
+                <p className="form-helper-text form-helper-block">
+                  Opcional: cada X meses puede amortizar un importe extra. &quot;En
+                  tiempo&quot; reduce el plazo manteniendo la cuota; &quot;En
+                  capital&quot; reduce la cuota manteniendo el plazo.
+                </p>
+                <div className="periods-list">
+                  {partialAmortizations.map((pa, index) => (
+                    <div key={index} className="period-card">
+                      <div className="period-header">
+                        <h4>Amortización parcial {index + 1}</h4>
+                        <button
+                          type="button"
+                          className="delete-button"
+                          onClick={() => removePartialAmortization(index)}
+                          aria-label="Eliminar amortización parcial"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      <div className="period-fields">
+                        <NumberInput
+                          id={`partial-period-${index}`}
+                          label="Cada cuántos meses"
+                          value={pa.periodMonths}
+                          onChange={(value) =>
+                            updatePartialAmortization(
+                              index,
+                              "periodMonths",
+                              Math.max(1, value),
+                            )
+                          }
+                          min={1}
+                          step={1}
+                          unit="meses"
+                        />
+                        <NumberInput
+                          id={`partial-amount-${index}`}
+                          label="Importe a amortizar"
+                          value={pa.amount}
+                          onChange={(value) =>
+                            updatePartialAmortization(
+                              index,
+                              "amount",
+                              Math.max(0, value),
+                            )
+                          }
+                          min={0}
+                          step={100}
+                          unit="€"
+                        />
+                        <PartialAmortizationTypeDropdown
+                          index={index}
+                          value={pa.type}
+                          onChange={(value) =>
+                            updatePartialAmortization(index, "type", value)
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="add-period-button"
-              onClick={addPartialAmortization}
-            >
-              ➕ Añadir amortización parcial
-            </button>
-          </fieldset>
+                <button
+                  type="button"
+                  className="add-period-button"
+                  onClick={addPartialAmortization}
+                >
+                  ➕ Añadir amortización parcial
+                </button>
+              </fieldset>
+            </>
+          )}
 
           <div className="form-actions">
             <button type="submit" className="button-primary">
