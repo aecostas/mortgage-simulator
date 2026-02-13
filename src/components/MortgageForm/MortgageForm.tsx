@@ -767,11 +767,7 @@ export function MortgageForm({
                             return periodSeries ? (
                               <div className="euribor-preview-chart">
                                 <div className="euribor-preview-header">
-                                  <EuriborChart
-                                    series={[periodSeries]}
-                                    width={400}
-                                    height={120}
-                                  />
+                                  <EuriborChart series={[periodSeries]} />
                                   <button
                                     type="button"
                                     className="recalculate-euribor-btn"

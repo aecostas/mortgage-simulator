@@ -423,23 +423,21 @@
   background: #f5f5f5;
   border-radius: 4px;
   border: 1px solid #e0e0e0;
+  min-width: 0;
+  overflow: hidden;
 
   .euribor-preview-header {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
   }
 
   .euribor-chart {
     padding: 0;
     background: transparent;
     border-bottom: none;
-
-    .euribor-chart-title {
-      font-size: 0.85rem;
-      margin-bottom: 8px;
-      color: #666;
-    }
+    max-width: 100%;
   }
 
   .recalculate-euribor-btn {
