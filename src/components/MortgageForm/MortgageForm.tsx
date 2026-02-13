@@ -27,7 +27,7 @@ import { EuriborChart } from "../EuriborChart/EuriborChart";
 import "./MortgageForm.scss";
 
 // Temporal: poner a true para reactivar las amortizaciones parciales
-const PARTIAL_AMORTIZATIONS_ENABLED = false;
+const PARTIAL_AMORTIZATIONS_ENABLED = true;
 
 // Helper component for Interest Type dropdown
 function InterestTypeDropdown({
@@ -224,7 +224,9 @@ export function MortgageForm({
 }: MortgageFormProps) {
   const mortgage = useMortgageStore((state) => state.getMortgage(mortgageId));
   const updateFormState = useMortgageStore((state) => state.updateFormState);
-  const updateEuriborPaths = useMortgageStore((state) => state.updateEuriborPaths);
+  const updateEuriborPaths = useMortgageStore(
+    (state) => state.updateEuriborPaths,
+  );
 
   const formState = mortgage?.formState ?? {
     name: "",
@@ -313,7 +315,7 @@ export function MortgageForm({
     // Usar los valores guardados si existen, o convertir euriborPreviewSeries a EuriborPaths
     const savedPaths = mortgage?.euriborPaths;
     let euriborPaths: EuriborPaths = {};
-    
+
     if (savedPaths && Object.keys(savedPaths).length > 0) {
       // Usar los valores guardados
       for (let i = 0; i < sortedPeriods.length; i++) {
@@ -328,7 +330,10 @@ export function MortgageForm({
       }
     } else {
       // Convertir euriborPreviewSeries a EuriborPaths
-      euriborPaths = convertEuriborSeriesToPaths(euriborPreviewSeries, sortedPeriods);
+      euriborPaths = convertEuriborSeriesToPaths(
+        euriborPreviewSeries,
+        sortedPeriods,
+      );
     }
 
     onSubmit(
@@ -454,7 +459,7 @@ export function MortgageForm({
       next.euriborMax = next.euriborMax ?? 5;
       next.euriborVolatility = next.euriborVolatility ?? 2;
     }
-    
+
     // Si se cambian parámetros del euribor, limpiar los valores guardados para ese periodo
     if (
       field === "euriborMin" ||
@@ -468,8 +473,7 @@ export function MortgageForm({
         (a, b) => a.startMonth - b.startMonth,
       );
       const periodIndexInSorted = sortedPeriodsAfter.findIndex(
-        (p) =>
-          p.startMonth === next.startMonth && p.endMonth === next.endMonth,
+        (p) => p.startMonth === next.startMonth && p.endMonth === next.endMonth,
       );
       if (periodIndexInSorted >= 0 && mortgage?.euriborPaths) {
         const updatedPaths = { ...mortgage.euriborPaths };
@@ -481,7 +485,7 @@ export function MortgageForm({
         );
       }
     }
-    
+
     newPeriods[index] = next;
     updateFormState(mortgageId, { periods: newPeriods });
   };
@@ -544,17 +548,17 @@ export function MortgageForm({
   const recalculateEuribor = (periodIndex: number) => {
     const period = sortedPeriods[periodIndex];
     if (period.interestType !== "variable") return;
-    
+
     // Generar nuevos valores usando la función de utilidades
     const newValues = recalculateEuriborForPeriod({ period });
-    
+
     // Actualizar los valores guardados
     const currentPaths = mortgage?.euriborPaths ?? {};
     const updatedPaths: EuriborPaths = {
       ...currentPaths,
       [periodIndex]: newValues,
     };
-    
+
     updateEuriborPaths(mortgageId, updatedPaths);
   };
 
@@ -961,9 +965,9 @@ export function MortgageForm({
               <fieldset className="form-section">
                 <legend>Amortizaciones parciales</legend>
                 <p className="form-helper-text form-helper-block">
-                  Opcional: cada X meses puede amortizar un importe extra. &quot;En
-                  tiempo&quot; reduce el plazo manteniendo la cuota; &quot;En
-                  capital&quot; reduce la cuota manteniendo el plazo.
+                  Opcional: cada X meses puede amortizar un importe extra.
+                  &quot;En tiempo&quot; reduce el plazo manteniendo la cuota;
+                  &quot;En capital&quot; reduce la cuota manteniendo el plazo.
                 </p>
                 <div className="periods-list">
                   {partialAmortizations.map((pa, index) => (
